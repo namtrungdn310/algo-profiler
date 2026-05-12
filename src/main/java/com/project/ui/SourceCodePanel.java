@@ -43,7 +43,7 @@ public class SourceCodePanel extends JPanel {
         this.onDataChanged = onDataChanged;
         this.userComboBox = new JComboBox<>();
         this.tableModel = new DefaultTableModel(
-                new Object[]{"", "Contest ID", "Submission ID", "Bài", "Ngôn ngữ", "Verdict", "Đã phân tích"}, 0) {
+                new Object[]{"STT", "", "Contest ID", "Submission ID", "Bài", "Ngôn ngữ", "Verdict", "Đã phân tích"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -61,7 +61,7 @@ public class SourceCodePanel extends JPanel {
 
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         JButton filterButton = new JButton("Lọc");
-        JButton crawlButton = new JButton("Crawl 5 code gần nhất");
+        JButton crawlButton = new JButton("Crawl thêm 5 source");
         filterButton.addActionListener(event -> filterSubmissions());
         crawlButton.addActionListener(event -> crawlSelectedUser());
 
@@ -74,7 +74,8 @@ public class SourceCodePanel extends JPanel {
         sourceTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent event) {
-                if (event.getClickCount() == 2 || sourceTable.columnAtPoint(event.getPoint()) == 0) {
+                int col = sourceTable.columnAtPoint(event.getPoint());
+                if (event.getClickCount() == 2 || col == 0 || col == 1) {
                     showSelectedSource();
                 }
             }
@@ -199,8 +200,10 @@ public class SourceCodePanel extends JPanel {
         currentSubmissions.clear();
         currentSubmissions.addAll(submissionDAO.findByUserId(userId));
         tableModel.setRowCount(0);
+        int stt = currentSubmissions.size();
         for (Submission submission : currentSubmissions) {
             tableModel.addRow(new Object[]{
+                    stt--,
                     ">",
                     submission.getContestId(),
                     submission.getSubmissionId(),

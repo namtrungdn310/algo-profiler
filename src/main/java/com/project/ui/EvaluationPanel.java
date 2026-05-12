@@ -96,6 +96,20 @@ public class EvaluationPanel extends JPanel {
                         detail.algorithms()
                 });
             }
+            if (evaluation.details().isEmpty()) {
+                summaryArea.setForeground(java.awt.Color.RED);
+                summaryArea.setText("""
+                        LỖI: Handle %s chưa có bất kỳ dữ liệu source code nào trong hệ thống!
+                        
+                        Hướng dẫn:
+                        1. Sang tab "Source Code".
+                        2. Chọn handle %s.
+                        3. Nhấn nút "Crawl thêm 5 source" để thu thập dữ liệu trước khi xem đánh giá.
+                        """.formatted(evaluation.handle(), evaluation.handle()).trim());
+                return;
+            }
+
+            summaryArea.setForeground(java.awt.Color.BLACK);
             summaryArea.setText("""
                     Handle: %s
                     Điểm tổng: %.1f

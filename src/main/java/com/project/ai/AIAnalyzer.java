@@ -90,6 +90,35 @@ public class AIAnalyzer {
         }
     }
 
+    public void testConnection() throws IOException, InterruptedException {
+        ensureApiKeyConfigured();
+        String apiUrl = buildGeminiUrl();
+        
+        JsonObject requestBody = new JsonObject();
+        JsonArray contents = new JsonArray();
+        JsonObject userContent = new JsonObject();
+        userContent.addProperty("role", "user");
+        JsonArray userParts = new JsonArray();
+        JsonObject userText = new JsonObject();
+        userText.addProperty("text", "Ping");
+        userParts.add(userText);
+        userContent.add("parts", userParts);
+        contents.add(userContent);
+        requestBody.add("contents", contents);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                .timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(requestBody), StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() >= 400) {
+            throw new IOException("AI API lỗi HTTP " + response.statusCode() + ": " + truncate(response.body(), 200));
+        }
+    }
+
     public AIAnalysisResult analyzeSubmission(Submission submission) throws IOException, InterruptedException {
         ensureApiKeyConfigured();
 

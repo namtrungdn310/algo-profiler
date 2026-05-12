@@ -1,5 +1,6 @@
 package com.project.ui;
 
+import com.project.ai.AIAnalyzer;
 import com.project.config.AppConfig;
 import com.project.crawler.CodeforcesBrowserSession;
 import com.project.scheduler.CrawlScheduler;
@@ -11,6 +12,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -18,6 +20,7 @@ import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -66,101 +69,110 @@ public class ConfigPanel extends JPanel {
 
     private void initializeLayout() {
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JPanel formPanel = new JPanel(new GridBagLayout());
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new javax.swing.BoxLayout(contentPanel, javax.swing.BoxLayout.Y_AXIS));
+
+        // --- NHÓM 1: XÁC MINH (BẮT BUỘC) ---
+        JPanel verifyPanel = new JPanel(new GridBagLayout());
+        verifyPanel.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(java.awt.Color.RED, 2),
+                " BƯỚC 1: XÁC MINH CODEFORCES (BẮT BUỘC) ",
+                0, 0, null, java.awt.Color.RED));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        formPanel.add(new JLabel("AI API Key:"), gbc);
+        gbc.gridx = 0; gbc.gridy = 0;
+        JLabel warningLabel = new JLabel("<html><b>QUAN TRỌNG:</b> Bạn phải mở Chrome xác minh và đăng nhập Codeforces trước khi sử dụng!</html>");
+        warningLabel.setForeground(java.awt.Color.RED);
+        verifyPanel.add(warningLabel, gbc);
 
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        formPanel.add(apiKeyField, gbc);
-
-        gbc.gridx = 0;
         gbc.gridy = 1;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("AI API URL:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        formPanel.add(apiUrlField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Profile crawler:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        profilePathLabel.setText(CodeforcesBrowserSession.getProfileDirectoryDescription());
-        formPanel.add(profilePathLabel, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Crawl định kỳ:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0;
-        formPanel.add(crawlScheduleEnabledCheckBox, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Giờ crawl mỗi ngày:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0;
-        formPanel.add(crawlDailyTimeField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Số code/handle/lần:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0;
-        formPanel.add(crawlLimitSpinner, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 6;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Trạng thái lịch:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        formPanel.add(scheduleStatusLabel, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 7;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Xác minh Codeforces:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0;
-        JButton verifyBrowserButton = new JButton("Mở Chrome xác minh");
+        JButton verifyBrowserButton = new JButton("MỞ CHROME XÁC MINH NGAY");
+        verifyBrowserButton.setBackground(new java.awt.Color(220, 53, 69));
+        verifyBrowserButton.setForeground(java.awt.Color.BLACK);
+        verifyBrowserButton.setFont(verifyBrowserButton.getFont().deriveFont(java.awt.Font.BOLD, 14f));
+        verifyBrowserButton.setFocusPainted(false);
         verifyBrowserButton.addActionListener(event -> openVerificationBrowser());
-        formPanel.add(verifyBrowserButton, gbc);
+        verifyPanel.add(verifyBrowserButton, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = 8;
-        JButton saveButton = new JButton("Lưu cấu hình");
+        gbc.gridy = 2;
+        profilePathLabel.setText("Đường dẫn Profile: " + CodeforcesBrowserSession.getProfileDirectoryDescription());
+        profilePathLabel.setFont(profilePathLabel.getFont().deriveFont(11f));
+        verifyPanel.add(profilePathLabel, gbc);
+
+        // --- NHÓM 2: LẬP LỊCH CRAWL ---
+        JPanel schedulePanel = new JPanel(new GridBagLayout());
+        schedulePanel.setBorder(BorderFactory.createTitledBorder(" BƯỚC 2: CÀI ĐẶT LỊCH CRAWL ĐỊNH KỲ "));
+        GridBagConstraints gbcS = new GridBagConstraints();
+        gbcS.insets = new Insets(6, 10, 6, 10);
+        gbcS.anchor = GridBagConstraints.WEST;
+
+        gbcS.gridx = 0; gbcS.gridy = 0;
+        schedulePanel.add(new JLabel("Crawl tự động:"), gbcS);
+        gbcS.gridx = 1;
+        schedulePanel.add(crawlScheduleEnabledCheckBox, gbcS);
+
+        gbcS.gridx = 0; gbcS.gridy = 1;
+        schedulePanel.add(new JLabel("Giờ chạy mỗi ngày:"), gbcS);
+        gbcS.gridx = 1;
+        schedulePanel.add(crawlDailyTimeField, gbcS);
+
+        gbcS.gridx = 0; gbcS.gridy = 2;
+        schedulePanel.add(new JLabel("Số bài mới mỗi handle:"), gbcS);
+        gbcS.gridx = 1;
+        schedulePanel.add(crawlLimitSpinner, gbcS);
+
+        gbcS.gridx = 0; gbcS.gridy = 3;
+        schedulePanel.add(new JLabel("Trạng thái hiện tại:"), gbcS);
+        gbcS.gridx = 1;
+        schedulePanel.add(scheduleStatusLabel, gbcS);
+
+        gbcS.gridx = 1; gbcS.gridy = 4;
+        gbcS.fill = GridBagConstraints.HORIZONTAL;
+        JPanel scheduleButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        JButton saveButton = new JButton("Lưu lịch");
         saveButton.addActionListener(event -> saveConfig());
-        formPanel.add(saveButton, gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = 9;
-        JButton runNowButton = new JButton("Chạy crawl định kỳ ngay");
+        JButton runNowButton = new JButton("Chạy thử ngay");
         runNowButton.addActionListener(event -> runScheduledCrawlNow());
-        formPanel.add(runNowButton, gbc);
+        scheduleButtons.add(saveButton);
+        scheduleButtons.add(new JLabel("  "));
+        scheduleButtons.add(runNowButton);
+        schedulePanel.add(scheduleButtons, gbcS);
 
-        add(formPanel, BorderLayout.NORTH);
+        // --- NHÓM 3: CẤU HÌNH AI ---
+        JPanel aiPanel = new JPanel(new GridBagLayout());
+        aiPanel.setBorder(BorderFactory.createTitledBorder(" BƯỚC 3: CẤU HÌNH AI (GEMINI) "));
+        GridBagConstraints gbcA = new GridBagConstraints();
+        gbcA.insets = new Insets(6, 10, 6, 10);
+        gbcA.anchor = GridBagConstraints.WEST;
+
+        gbcA.gridx = 0; gbcA.gridy = 0;
+        aiPanel.add(new JLabel("API Key:"), gbcA);
+        gbcA.gridx = 1; gbcA.weightx = 1.0; gbcA.fill = GridBagConstraints.HORIZONTAL;
+        aiPanel.add(apiKeyField, gbcA);
+
+        gbcA.gridx = 0; gbcA.gridy = 1; gbcA.weightx = 0; gbcA.fill = GridBagConstraints.NONE;
+        aiPanel.add(new JLabel("API URL:"), gbcA);
+        
+        gbcA.gridx = 1; gbcA.weightx = 1.0; gbcA.fill = GridBagConstraints.HORIZONTAL;
+        aiPanel.add(apiUrlField, gbcA);
+
+        gbcA.gridx = 1; gbcA.gridy = 2;
+        gbcA.fill = GridBagConstraints.NONE;
+        JButton testAiButton = new JButton("Kiểm tra & Xác nhận API");
+        testAiButton.addActionListener(event -> testAndSaveAiConfig());
+        aiPanel.add(testAiButton, gbcA);
+
+        contentPanel.add(verifyPanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
+        contentPanel.add(schedulePanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
+        contentPanel.add(aiPanel);
+
+        add(new JScrollPane(contentPanel), BorderLayout.CENTER);
         registerUnsavedChangeListeners();
     }
 
@@ -312,6 +324,45 @@ public class ConfigPanel extends JPanel {
         }
     }
 
+    private void testAndSaveAiConfig() {
+        try {
+            String newKey = new String(apiKeyField.getPassword()).trim();
+            String newUrl = apiUrlField.getText().trim();
+            
+            if (newKey.isBlank()) {
+                JOptionPane.showMessageDialog(this,
+                        "Vui lòng nhập API Key trước khi kiểm tra.",
+                        "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Lưu cấu hình vào file TRƯỚC khi test để API Key không bị mất
+            AppConfig.setAiApiKey(newKey);
+            AppConfig.setAiApiUrl(newUrl.isBlank() ? AppConfig.getDefaultAiApiUrl() : newUrl);
+            if (onConfigSaved != null) {
+                onConfigSaved.run();
+            }
+
+            // Sau đó mới test kết nối
+            AIAnalyzer analyzer = new AIAnalyzer();
+            analyzer.testConnection();
+
+            JOptionPane.showMessageDialog(this,
+                    "Kết nối AI API thành công! Cấu hình đã được lưu.",
+                    "Thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IllegalArgumentException exception) {
+            JOptionPane.showMessageDialog(this,
+                    exception.getMessage(),
+                    "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception exception) {
+            // API Key đã được lưu nhưng test thất bại - hiển thị lỗi nhưng giữ key
+            JOptionPane.showMessageDialog(this,
+                    "API Key đã được lưu nhưng kiểm tra kết nối thất bại:\n" 
+                    + exception.getMessage()
+                    + "\n\nURL đang dùng: " + AppConfig.getAiApiUrl(),
+                    "Cảnh báo kết nối", JOptionPane.WARNING_MESSAGE);
+        }
+    }
     private void openVerificationBrowser() {
         try {
             CodeforcesBrowserSession.openManualLoginBrowser();

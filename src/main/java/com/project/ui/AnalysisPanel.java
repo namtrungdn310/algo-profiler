@@ -14,6 +14,7 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -38,6 +39,9 @@ public class AnalysisPanel extends JPanel {
     private final JTable analysisTable;
     private final JTextArea detailArea;
     private final List<Submission> currentSubmissions;
+    private final JButton analyzeButton;
+    private final JProgressBar progressBar;
+    private final JLabel statusLabel;
 
     public AnalysisPanel(Runnable onDataChanged) {
         this.userDAO = new UserDAO();
@@ -56,6 +60,9 @@ public class AnalysisPanel extends JPanel {
         this.analysisTable = new JTable(tableModel);
         this.detailArea = new JTextArea();
         this.currentSubmissions = new ArrayList<>();
+        this.analyzeButton = new JButton("Phân tích code đã chọn");
+        this.progressBar = new JProgressBar(0, 100);
+        this.statusLabel = new JLabel("Sẵn sàng.");
         initializeLayout();
         refreshUsers();
     }
@@ -66,7 +73,6 @@ public class AnalysisPanel extends JPanel {
 
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         JButton filterButton = new JButton("Lọc");
-        JButton analyzeButton = new JButton("Phân tích code đã chọn");
         filterButton.addActionListener(event -> filterSubmissions());
         analyzeButton.addActionListener(event -> analyzeSelectedSubmission());
 
@@ -74,6 +80,19 @@ public class AnalysisPanel extends JPanel {
         filterPanel.add(userComboBox);
         filterPanel.add(filterButton);
         filterPanel.add(analyzeButton);
+
+        // Progress panel
+        progressBar.setStringPainted(true);
+        progressBar.setString("");
+        progressBar.setVisible(false);
+
+        JPanel progressPanel = new JPanel(new BorderLayout(8, 4));
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+        progressPanel.add(statusLabel, BorderLayout.SOUTH);
+
+        JPanel topPanel = new JPanel(new BorderLayout(0, 6));
+        topPanel.add(filterPanel, BorderLayout.NORTH);
+        topPanel.add(progressPanel, BorderLayout.SOUTH);
 
         detailArea.setEditable(false);
         detailArea.setLineWrap(true);
@@ -85,7 +104,7 @@ public class AnalysisPanel extends JPanel {
         centerPanel.add(new JScrollPane(analysisTable), BorderLayout.CENTER);
         centerPanel.add(new JScrollPane(detailArea), BorderLayout.SOUTH);
 
-        add(filterPanel, BorderLayout.NORTH);
+        add(topPanel, BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
     }
 
@@ -115,6 +134,8 @@ public class AnalysisPanel extends JPanel {
                         "Handle này chưa có source code đã crawl. Hãy sang giao diện Source Code để crawl trước.",
                         "Chưa có dữ liệu",
                         JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                statusLabel.setText("Đã tải " + currentSubmissions.size() + " submission. Chọn một dòng rồi nhấn Phân tích.");
             }
         } catch (SQLException exception) {
             showError("Không thể tải dữ liệu phân tích", exception);
@@ -130,38 +151,91 @@ public class AnalysisPanel extends JPanel {
         }
 
         Submission submission = currentSubmissions.get(row);
-        SwingWorker<Analysis, Void> worker = new SwingWorker<>() {
+
+        // Kiểm tra nếu đã phân tích rồi
+        try {
+            Optional<Analysis> existing = analysisDAO.findBySubmissionId(submission.getId());
+            if (existing.isPresent()) {
+                showSelectedAnalysis();
+                statusLabel.setText("Submission #" + submission.getSubmissionId() + " đã được phân tích trước đó.");
+                return;
+            }
+        } catch (SQLException ignored) {}
+
+        // Bắt đầu phân tích - hiển thị tiến trình
+        setAnalyzing(true, "Đang khởi tạo kết nối tới Gemini AI...");
+
+        SwingWorker<Analysis, Integer> worker = new SwingWorker<>() {
             @Override
             protected Analysis doInBackground() throws Exception {
-                Optional<Analysis> existing = analysisDAO.findBySubmissionId(submission.getId());
-                if (existing.isPresent()) {
-                    return existing.get();
+                // Tạo một thread phụ để chạy phần trăm giả lập trong khi chờ AI phản hồi
+                Thread progressThread = new Thread(() -> {
+                    try {
+                        int p = 10;
+                        while (p < 95 && !isDone()) {
+                            Thread.sleep(800 + (int)(Math.random() * 500));
+                            p += (int)(Math.random() * 3 + 1);
+                            publish(Math.min(p, 95));
+                        }
+                    } catch (InterruptedException ignored) {}
+                });
+                progressThread.start();
+
+                // Gọi AI thực tế
+                Analysis result = aiAnalyzer.analyzeAndStore(submission);
+                
+                progressThread.interrupt();
+                return result;
+            }
+
+            @Override
+            protected void process(List<Integer> chunks) {
+                if (!chunks.isEmpty()) {
+                    int val = chunks.get(chunks.size() - 1);
+                    progressBar.setValue(val);
+                    progressBar.setString(val + "% - Đang xử lý dữ liệu...");
+                    statusLabel.setText("Đang chờ AI phản hồi... (" + val + "%)");
                 }
-                return aiAnalyzer.analyzeAndStore(submission);
             }
 
             @Override
             protected void done() {
                 try {
                     get();
+                    progressBar.setValue(100);
+                    progressBar.setString("100% - Hoàn tất!");
                     UserItem selectedUser = (UserItem) userComboBox.getSelectedItem();
                     if (selectedUser != null) {
                         loadSubmissions(selectedUser.userId());
                     }
                     notifyDataChanged();
-                    JOptionPane.showMessageDialog(AnalysisPanel.this,
-                            "Đã phân tích submission #" + submission.getSubmissionId(),
-                            "Hoàn tất",
-                            JOptionPane.INFORMATION_MESSAGE);
+                    statusLabel.setText("✓ Phân tích hoàn tất thành công.");
+                    showSelectedAnalysis();
                 } catch (Exception exception) {
+                    statusLabel.setText("✗ Lỗi: " + exception.getMessage());
                     JOptionPane.showMessageDialog(AnalysisPanel.this,
                             "Phân tích thất bại:\n" + exception.getMessage(),
                             "Lỗi AI",
                             JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    setAnalyzing(false, null);
                 }
             }
         };
         worker.execute();
+    }
+
+    private void setAnalyzing(boolean analyzing, String message) {
+        analyzeButton.setEnabled(!analyzing);
+        progressBar.setVisible(analyzing);
+        if (analyzing) {
+            progressBar.setValue(10);
+            progressBar.setString("10%");
+            analyzeButton.setText("Đang phân tích...");
+            statusLabel.setText(message != null ? message : "Đang xử lý...");
+        } else {
+            analyzeButton.setText("Phân tích code đã chọn");
+        }
     }
 
     private void loadSubmissions(Long userId) throws SQLException {

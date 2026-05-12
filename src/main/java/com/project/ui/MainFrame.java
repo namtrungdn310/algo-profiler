@@ -2,6 +2,7 @@ package com.project.ui;
 
 import com.project.config.AppConfig;
 import com.project.scheduler.CrawlScheduler;
+import org.h2.tools.Server;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -38,6 +39,7 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         super("AlgoProfiler");
+        startDatabaseConsole();
         this.cardLayout = new CardLayout();
         this.contentPanel = new JPanel(cardLayout);
         this.crawlScheduler = new CrawlScheduler(false,
@@ -86,7 +88,9 @@ public class MainFrame extends JFrame {
         JButton sourceButton = createMenuButton("Source Code", CARD_SOURCE);
         JButton analysisButton = createMenuButton("Phân tích Source", CARD_ANALYSIS);
         JButton evaluationButton = createMenuButton("Đánh giá", CARD_EVALUATION);
-        JButton settingsButton = createMenuButton("Cài đặt hệ thống", CARD_SETTINGS);
+        JButton settingsButton = createMenuButton("Cài đặt hệ thống (Bắt buộc)", CARD_SETTINGS);
+        settingsButton.setForeground(java.awt.Color.RED);
+        settingsButton.setBackground(new java.awt.Color(255, 230, 230));
 
         menuPanel.add(overviewButton);
         menuPanel.add(userButton);
@@ -126,6 +130,23 @@ public class MainFrame extends JFrame {
     private void handleScheduledCrawlFinished(CrawlScheduler.ScheduledCrawlReport report) {
         refreshAllData();
         configPanel.updateLastScheduledRun(report);
+        
+        JOptionPane.showMessageDialog(this,
+                """
+                [Lịch Crawl Định Kỳ] Đã hoàn thành thu thập dữ liệu tự động.
+                
+                - Số handle đã kiểm tra: %d
+                - Tổng số bài nộp mới: %d
+                - Số bài đã có sẵn: %d
+                - Lỗi: %d handle
+                """.formatted(
+                        report.userCount(),
+                        report.insertedCount(),
+                        report.existingCount(),
+                        report.failedUserCount()
+                ).trim(),
+                "Thông báo lịch crawl",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void runScheduledCrawlNow() {
@@ -167,6 +188,15 @@ public class MainFrame extends JFrame {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {
+        }
+    }
+
+    private void startDatabaseConsole() {
+        try {
+            // Khởi chạy H2 Web Console tại localhost:8082
+            Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082").start();
+        } catch (Exception ignored) {
+            // Nếu port đã bị chiếm thì bỏ qua
         }
     }
 

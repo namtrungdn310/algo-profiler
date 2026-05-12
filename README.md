@@ -1,139 +1,64 @@
-# AlgoProfiler
+# AlgoProfiler - Hệ thống phân tích hồ sơ thuật toán Codeforces
 
-## 1. Giới thiệu dự án
-AlgoProfiler là ứng dụng Java Swing dùng để:
+## I. Công nghệ sử dụng
+- **Ngôn ngữ:** Java 17.
+- **Giao diện:** Java Swing.
+- **Cơ sở dữ liệu:** H2 Database (Embedded).
+- **Thu thập dữ liệu:** Selenium Automation & Codeforces API.
+- **Trí tuệ nhân tạo:** Google Gemini 2.5 Flash API.
+- **Quản lý dự án:** Maven.
 
-- Quản lý danh sách handle Codeforces.
-- Crawl danh sách submission Accepted và lưu source code vào H2 Database.
-- Gửi source code tới mô hình AI để phân tích CTDL, thuật toán và mức độ nghi ngờ do AI sinh ra.
-- Chấm điểm tổng cho từng nick và hiển thị dashboard đánh giá.
+## II. Hướng dẫn chạy chương trình
 
-Ứng dụng được tổ chức theo chuẩn Maven để có thể mở trực tiếp bằng VS Code hoặc import vào Eclipse.
+### Cách 1: Sử dụng Antigravity (VS Code)
+1. Mở thư mục dự án bằng VS Code.
+2. Chờ Maven tải xong thư viện.
+3. Mở file `src/main/java/com/project/ui/MainFrame.java` và nhấn **Run**.
 
-## 2. Tính năng chính
+### Cách 2: Sử dụng Eclipse
+1. Chọn **File > Import > Existing Maven Projects**.
+2. Trỏ đường dẫn đến thư mục dự án.
+3. Chuột phải vào dự án chọn **Run As > Java Application** (chọn class `MainFrame`).
 
-- Thêm handle Codeforces vào hệ thống qua giao diện Swing.
-- Lưu dữ liệu bằng H2 Database với file đặt ngay trong thư mục project.
-- Crawl source code bằng Selenium + WebDriverManager, không yêu cầu cài ChromeDriver thủ công.
-- Cấu hình AI API Key qua giao diện, không cần sửa code.
-- Phân tích source code bằng AI API và lưu kết quả xuống bảng `ANALYSIS`.
-- Tính điểm tổng dựa trên thuật toán/CTDL và cảnh báo nguy cơ lạm dụng AI.
-- Tách giao diện thành các màn hình: tổng quan, tài khoản, source code, phân tích source và đánh giá.
+## III. Cách sử dụng chương trình
 
-## 3. Cấu trúc dự án
+*Lưu ý: Dữ liệu mẫu đã được tích hợp sẵn trong thư mục `database/`. Bạn có thể xem ngay các tab mà không cần crawl data lại.*
 
-- `src/main/java/com/project/config`: cấu hình database và config file.
-- `src/main/java/com/project/model`: model dữ liệu.
-- `src/main/java/com/project/dao`: DAO thao tác với H2.
-- `src/main/java/com/project/ui`: giao diện Swing.
-- `src/main/java/com/project/crawler`: module crawl Codeforces.
-- `src/main/java/com/project/ai`: module gọi AI API.
-- `src/main/java/com/project/service`: dịch vụ chấm điểm tổng hợp.
-- `database/`: nơi lưu file H2 sau khi chạy chương trình.
-- `config.properties`: file lưu API key và AI API URL.
+**Bước 1: Cài đặt hệ thống (Bắt buộc nếu muốn crawl mới)**
+   - Nhấn **Mở Chrome xác minh ngay** để vượt Cloudflare và đăng nhập tài khoản Codeforces bất kỳ (sử dụng tài khoản đã có submit một vài bài tập). 
+   *Lưu ý: Giữ cửa sổ Chrome này mở suốt quá trình crawl.*
+   - Nhập **Gemini API Key** và nhấn **Kiểm tra & Xác nhận API**.
 
-## 4. Cấu trúc H2 Database
+**Bước 2: Quản lý Handle**
+   - Vào tab **Quản lý Handle** để xem danh sách nick đã thêm hoặc thêm mới.
 
-### Bảng `CF_USER`
+**Bước 3: Thu thập Source Code (Crawl)**
+   - Chuyển sang tab **Source Code**.
+   - Chọn một handle trong danh sách (ví dụ: `tourist`) và nhấn **Lọc**. Danh sách các bài nộp đã lưu trong máy sẽ hiện ra.
+   - Nhấn **Crawl thêm 5 source**: Chương trình sẽ tự động điều khiển Chrome để lấy mã nguồn mới nhất của các bài đã `Accepted`. Kết quả sẽ được lưu trực tiếp vào cơ sở dữ liệu.
+   *Lưu ý: Trong quá trình Crawl có thể Codeforces sẽ hiện các thông báo lỗi, nhưng vẫn để giữ nguyên máy để code thực hiện cho đến khi hoàn thành xong.*
 
-- `ID`: khóa chính.
-- `HANDLE`: nick Codeforces.
-- `DISPLAY_NAME`: tên hiển thị.
-- `RATING`, `MAX_RATING`, `RANK_TITLE`: thông tin mở rộng.
-- `TOTAL_SCORE`: điểm tổng sau đánh giá.
-- `CRAWL_ENABLED`: bật/tắt crawl định kỳ cho handle.
-- `LAST_CRAWLED_AT`: thời điểm crawl gần nhất.
-- `CREATED_AT`: thời điểm tạo.
+**Bước 4: Phân tích AI**
+   - Chuyển sang tab **Phân tích Source**.
+   - Chọn handle và nhấn **Lọc** để thấy danh sách mã nguồn đã crawl.
+   - Chọn một dòng bài tập cụ thể và nhấn **Phân tích code đã chọn**.
+   - **Thanh tiến trình** sẽ chạy và hiển thị phần trăm. Lúc này, AI đang đọc hiểu mã nguồn để bóc tách: *Cấu trúc dữ liệu, Thuật toán và đánh giá xem code này có giống do AI viết hay không.*
 
-### Bảng `SUBMISSION`
+**Bước 5: Tổng quan đánh giá**
+   - Chuyển sang tab **Đánh giá**.
+   - Chọn handle và nhấn **Lọc**. Chương trình sẽ tổng hợp toàn bộ kết quả phân tích AI để:
+     - Hiển thị **Biểu đồ tròn** về tỷ lệ các Cấu trúc dữ liệu/Thuật toán handle đó hay dùng.
+     - Tính toán **Điểm số AI (AI Usage Score)**: Càng cao nghĩa là code càng có nhiều dấu hiệu của AI sinh ra.
+     - Hiển thị danh sách chi tiết từng bài để thầy có cái nhìn tổng quát về trình độ của người dùng đó.
 
-- `ID`: khóa chính nội bộ.
-- `USER_ID`: khóa ngoại tới `CF_USER`.
-- `CONTEST_ID`: mã contest.
-- `SUBMISSION_ID`: mã submission trên Codeforces.
-- `PROBLEM_INDEX`, `PROBLEM_NAME`: thông tin bài.
-- `PROGRAMMING_LANGUAGE`, `VERDICT`: thông tin ngôn ngữ và kết quả.
-- `SUBMITTED_AT`: thời gian nộp.
-- `SOURCE_CODE`: mã nguồn crawl được.
-- `CODE_HASH`: hash nội dung code.
-- `IS_ANALYZED`: đã phân tích AI hay chưa.
-- `CREATED_AT`: thời điểm tạo.
+## IV. Kiểm tra Cơ sở dữ liệu
+Khi chương trình đang chạy, thầy có thể kiểm tra dữ liệu trực tiếp qua trình duyệt:
+1. Truy cập địa chỉ: **[http://localhost:8082](http://localhost:8082)**
+2. Nhập thông tin kết nối:
+   - **JDBC URL:** `jdbc:h2:./database/algo_profiler`
+   - **User Name:** `sa`
+   - **Password:** (để trống)
+3. Nhấn **Connect** để xem và truy vấn các bảng: `USERS`, `SUBMISSIONS`, `ANALYSIS`.
 
-### Bảng `ANALYSIS`
-
-- `ID`: khóa chính.
-- `SUBMISSION_ID`: khóa ngoại tới `SUBMISSION.ID`.
-- `DATA_STRUCTURES`: danh sách CTDL phát hiện.
-- `ALGORITHMS`: danh sách thuật toán phát hiện.
-- `AI_USAGE_SCORE`: xác suất nghi ngờ AI.
-- `AI_USAGE_LABEL`: nhãn đánh giá AI.
-- `CONFIDENCE_SCORE`: độ tin cậy nội bộ.
-- `SUMMARY`: nhận xét tổng hợp.
-- `ANALYZED_AT`: thời điểm phân tích.
-
-## 5. Hướng dẫn import dự án vào Eclipse
-
-1. Mở Eclipse.
-2. Chọn `File -> Import`.
-3. Chọn `Maven -> Existing Maven Projects`.
-4. Chọn thư mục gốc `algoprofiler`.
-5. Nhấn `Finish`.
-6. Chờ Eclipse tự tải dependencies Maven.
-7. Nếu Eclipse hỏi chọn JDK, hãy đặt về Java 17.
-
-## 6. Yêu cầu môi trường
-
-- Java 17.
-- Google Chrome đã cài trên máy Windows.
-- Kết nối Internet để tải Maven dependencies và gọi AI API.
-
-Không cần cài ChromeDriver thủ công vì dự án đã dùng `WebDriverManager`.
-
-## 7. Hướng dẫn cấu hình AI API Key
-
-Ứng dụng hỗ trợ lưu API key qua giao diện:
-
-1. Chạy chương trình.
-2. Vào màn hình `Cài đặt hệ thống`.
-3. Nhập `AI API Key`.
-4. Nếu cần, kiểm tra `AI API URL`.
-5. Nếu muốn crawl tự động, bật `Bật crawl tự động hằng ngày`, nhập giờ theo định dạng `HH:mm` và số code tối đa mỗi handle mỗi lần.
-6. Nhấn `Lưu cấu hình`.
-
-Sau bước này, ứng dụng sẽ ghi dữ liệu vào file `config.properties` ở thư mục gốc project. Người dùng không cần sửa mã nguồn.
-
-## 8. Hướng dẫn chạy chương trình
-
-### Chạy bằng Eclipse
-
-1. Mở class `com.project.ui.MainFrame`.
-2. Nhấn `Run As -> Java Application`.
-
-### Chạy bằng terminal
-
-Nếu máy có Maven:
-
-```bash
-mvn compile
-```
-
-Sau đó chạy class `com.project.ui.MainFrame`.
-
-## 9. Quy trình sử dụng đề xuất
-
-1. Mở ứng dụng.
-2. Vào `Cài đặt hệ thống`, nhập AI API Key, cấu hình giờ crawl định kỳ nếu cần và lưu.
-3. Vào `Tài khoản`, nhập handle Codeforces rồi nhấn `Kiểm tra & cập nhật`.
-4. Bật hoặc tắt cột `Crawl định kỳ` cho từng handle.
-5. Vào `Source Code`, chọn handle, nhấn `Lọc`; nếu chưa có dữ liệu, nhấn `Crawl 5 code gần nhất`.
-6. Double-click hoặc bấm mũi tên ở từng dòng để xem source code.
-7. Vào `Phân tích Source`, chọn handle, lọc source đã crawl rồi chọn từng submission để phân tích AI.
-8. Vào `Đánh giá`, chọn handle để xem điểm tổng, AI trung bình và chi tiết các bài đã phân tích.
-
-## 10. Lưu ý khi chấm bài
-
-- Codeforces có thể giới hạn hoặc chặn tạm thời việc crawl nếu truy cập quá nhanh.
-- Dự án đã thêm `WebDriverWait` và delay ngắn để giảm nguy cơ bị block.
-- Nếu AI API key trống hoặc sai, chương trình sẽ báo lỗi rõ ràng thay vì crash toàn bộ ứng dụng.
-- Nếu một bài phân tích AI lỗi, hệ thống sẽ đánh dấu `Lỗi phân tích` cho bài đó và tiếp tục xử lý các bài còn lại.
-- Codeforces chỉ cho crawl source nếu submission đó public hoặc thuộc tài khoản đang đăng nhập trong Chrome xác minh.
+---
+*Bài tập được thực hiện bởi sinh viên: Châu Thanh Nam Trung - MSSV: 102240117 - STT: 26 - Lớp: 24T_DT2.*

@@ -1,8 +1,10 @@
 package com.project.scheduler;
 
+import com.project.crawler.CodeforcesBrowserSession;
 import com.project.crawler.CodeforcesCrawler;
 import com.project.dao.UserDAO;
 import com.project.model.User;
+import org.openqa.selenium.WebDriver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,6 +29,7 @@ public class CrawlScheduler {
 
     private final UserDAO userDAO;
     private final CodeforcesCrawler crawler;
+    private final boolean headless;
     private final AtomicBoolean started;
     private final Consumer<ScheduledCrawlReport> afterCrawlCallback;
     private ScheduledExecutorService scheduler;
@@ -46,6 +49,7 @@ public class CrawlScheduler {
     public CrawlScheduler(boolean headless, Consumer<ScheduledCrawlReport> afterCrawlCallback) {
         this.userDAO = new UserDAO();
         this.crawler = new CodeforcesCrawler(headless);
+        this.headless = headless;
         this.started = new AtomicBoolean(false);
         this.afterCrawlCallback = afterCrawlCallback;
     }
@@ -138,16 +142,24 @@ public class CrawlScheduler {
 
     private ScheduledCrawlReport crawlAllUsersSafely(int maxNewSubmissionsPerUser) {
         ScheduledCrawlReport.Builder builder = new ScheduledCrawlReport.Builder();
+        WebDriver sharedDriver = null;
         try {
             List<User> users = userDAO.findCrawlEnabledUsers();
             builder.userCount(users.size());
             logScheduler("Loaded crawl-enabled users count=%d".formatted(users.size()));
+
+            if (!users.isEmpty()) {
+                sharedDriver = CodeforcesBrowserSession.createCrawlerDriver(headless);
+            }
+
             for (User user : users) {
                 try {
                     logScheduler("Scheduled crawl user start handle=%s".formatted(user.getHandle()));
-                    CodeforcesCrawler.CrawlReport report = crawler.crawlDetailed(user, maxNewSubmissionsPerUser);
+                    CodeforcesCrawler.CrawlReport report = crawler.crawlDetailed(user, maxNewSubmissionsPerUser, sharedDriver);
                     builder.add(report);
                     logScheduler("Scheduled crawl user finished " + report.toDebugString());
+                    // Small delay between handles
+                    Thread.sleep(2000);
                 } catch (Exception exception) {
                     builder.failedUserCount(builder.failedUserCount() + 1);
                     logScheduler("Scheduled crawl user failed handle=%s error=%s".formatted(
@@ -157,6 +169,10 @@ public class CrawlScheduler {
         } catch (SQLException exception) {
             builder.failedUserCount(builder.failedUserCount() + 1);
             logScheduler("Failed to load users for scheduled crawl: " + exception.getMessage());
+        } finally {
+            if (sharedDriver != null) {
+                CodeforcesBrowserSession.releaseDriver(sharedDriver);
+            }
         }
         return builder.build();
     }

@@ -20,8 +20,8 @@ public final class AppConfig {
     private static final String CRAWL_SCHEDULE_ENABLED = "crawl.schedule.enabled";
     private static final String CRAWL_DAILY_TIME = "crawl.daily.time";
     private static final String CRAWL_MAX_NEW_PER_USER = "crawl.max_new_per_user";
-    private static final String DEFAULT_AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-    private static final String DEFAULT_AI_MODEL = "gemini-1.5-flash";
+    private static final String DEFAULT_AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    private static final String DEFAULT_AI_MODEL = "gemini-2.5-flash";
     private static final String DEFAULT_CRAWL_DAILY_TIME = "02:00";
     private static final int DEFAULT_CRAWL_MAX_NEW_PER_USER = 5;
     private static final DateTimeFormatter CRAWL_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -47,6 +47,10 @@ public final class AppConfig {
         Properties properties = loadProperties();
         properties.setProperty(AI_API_URL, apiUrl == null || apiUrl.isBlank() ? DEFAULT_AI_API_URL : apiUrl.trim());
         saveProperties(properties);
+    }
+
+    public static String getDefaultAiApiUrl() {
+        return DEFAULT_AI_API_URL;
     }
 
     public static String getAiModel() {
@@ -119,6 +123,14 @@ public final class AppConfig {
             ensureConfigFileExists();
             try (InputStream inputStream = Files.newInputStream(CONFIG_PATH)) {
                 properties.load(inputStream);
+            }
+            
+            // Tự động sửa URL cũ (gemini 1.x, gemini-pro, gemini-2.0) sang gemini-2.5-flash
+            String currentUrl = properties.getProperty(AI_API_URL, "");
+            boolean isOldUrl = !currentUrl.isBlank() && !currentUrl.contains("gemini-2.5") && !currentUrl.contains("gemini-3");
+            if (isOldUrl) {
+                properties.setProperty(AI_API_URL, DEFAULT_AI_API_URL);
+                saveProperties(properties);
             }
         } catch (IOException exception) {
             throw new IllegalStateException("Không thể đọc file config.properties", exception);

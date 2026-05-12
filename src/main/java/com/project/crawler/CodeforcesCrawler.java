@@ -108,8 +108,12 @@ public class CodeforcesCrawler {
     }
 
     public CrawlReport crawlDetailed(User user, int maxNewSubmissions) throws SQLException {
+        return crawlDetailed(user, maxNewSubmissions, null);
+    }
+
+    public CrawlReport crawlDetailed(User user, int maxNewSubmissions, WebDriver existingDriver) throws SQLException {
         try {
-            return crawlWithMode(user, headless, sanitizeMaxNewSubmissions(maxNewSubmissions));
+            return crawlWithMode(user, headless, sanitizeMaxNewSubmissions(maxNewSubmissions), existingDriver);
         } catch (NoSuchSessionException sessionException) {
             throw new IllegalStateException("""
                     Cửa sổ Chrome crawler đã bị đóng hoặc mất kết nối trong khi đang lấy source code.
@@ -117,14 +121,15 @@ public class CodeforcesCrawler {
                     """.trim(), sessionException);
         } catch (TimeoutException timeoutException) {
             if (headless) {
-                return crawlWithMode(user, false, sanitizeMaxNewSubmissions(maxNewSubmissions));
+                return crawlWithMode(user, false, sanitizeMaxNewSubmissions(maxNewSubmissions), existingDriver);
             }
             throw timeoutException;
         }
     }
 
-    private CrawlReport crawlWithMode(User user, boolean runHeadless, int maxNewSubmissions) throws SQLException {
-        WebDriver driver = null;
+    private CrawlReport crawlWithMode(User user, boolean runHeadless, int maxNewSubmissions, WebDriver existingDriver) throws SQLException {
+        WebDriver driver = existingDriver;
+        boolean sharedDriver = existingDriver != null;
         try {
             logDebug("Start crawl handle=%s maxNewSubmissions=%d headless=%s".formatted(
                     user.getHandle(), maxNewSubmissions, runHeadless));
@@ -219,6 +224,12 @@ public class CodeforcesCrawler {
                 insertedCount++;
                 logDebug("Inserted submissionId=%d handle=%s sourceLength=%d".formatted(
                         snapshot.submissionId(), user.getHandle(), sourceCode.length()));
+
+                if (insertedCount >= maxNewSubmissions) {
+                    logDebug("Reached maxNewSubmissions=%d, stopping crawl for handle=%s".formatted(
+                            maxNewSubmissions, user.getHandle()));
+                    break;
+                }
             }
 
             userDAO.updateLastCrawledAt(user.getId(), Timestamp.from(Instant.now()));
@@ -243,7 +254,9 @@ public class CodeforcesCrawler {
             }
             return report;
         } finally {
-            CodeforcesBrowserSession.releaseDriver(driver);
+            if (!sharedDriver) {
+                CodeforcesBrowserSession.releaseDriver(driver);
+            }
         }
     }
 
@@ -367,9 +380,6 @@ public class CodeforcesCrawler {
 
                 Optional<SubmissionSnapshot> snapshot = toSnapshotFromApiSubmission(submission);
                 snapshot.ifPresent(snapshots::add);
-                if (snapshots.size() >= maxNewSubmissions) {
-                    break;
-                }
             }
 
             logDebug("Codeforces API accepted metadata handle=%s apiCount=%d accepted=%d".formatted(
