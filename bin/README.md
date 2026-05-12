@@ -25,7 +25,7 @@
 *Lưu ý: Dữ liệu mẫu đã được tích hợp sẵn trong thư mục `database/`. Bạn có thể xem ngay các tab mà không cần crawl data lại.*
 
 **Bước 1: Cài đặt hệ thống (Bắt buộc nếu muốn crawl mới)**
-   - Nhấn **Mở Chrome xác minh ngay** để vượt Cloudflare và đăng nhập tài khoản Codeforces bất kỳ.
+   - Nhấn **Mở Chrome xác minh ngay** để vượt Cloudflare và đăng nhập tài khoản Codeforces bất kỳ (sử dụng tài khoản đã có submit một vài bài tập). 
    *Lưu ý: Giữ cửa sổ Chrome này mở suốt quá trình crawl.*
    - Nhập **Gemini API Key** và nhấn **Kiểm tra & Xác nhận API**.
 
@@ -43,7 +43,6 @@
    - Chọn handle và nhấn **Lọc** để thấy danh sách mã nguồn đã crawl.
    - Chọn một dòng bài tập cụ thể và nhấn **Phân tích code đã chọn**.
    - **Thanh tiến trình** sẽ chạy và hiển thị phần trăm. Lúc này, AI đang đọc hiểu mã nguồn để bóc tách: *Cấu trúc dữ liệu, Thuật toán và đánh giá xem code này có giống do AI viết hay không.*
-   - Nếu muốn xem chi tiết phân tích, chọn một dòng bài tập xong ấn vào tab "Phân tích Source"
 
 **Bước 5: Tổng quan đánh giá**
    - Chuyển sang tab **Đánh giá**.
