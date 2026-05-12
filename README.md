@@ -57,7 +57,7 @@
    - Bạn có thể nhấn **Chạy crawl định kỳ ngay** để kiểm tra tính năng này lập tức.
 
 ## IV. Kiểm tra Cơ sở dữ liệu
-Khi chương trình đang chạy, bạn có thể kiểm tra dữ liệu trực tiếp qua trình duyệt:
+Khi chương trình đang chạy, bạn có thể kiểm tra dữ liệu trực tiếp qua trình duyệt (H2 Console):
 1. Truy cập địa chỉ: **[http://localhost:8082](http://localhost:8082)**
 2. Nhập thông tin kết nối chính xác như sau:
    - **JDBC URL:** (Copy dòng `[Database] JDBC URL...` trong cửa sổ Console khi chạy App)
