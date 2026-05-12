@@ -62,7 +62,7 @@ public class MainFrame extends JFrame {
     private void printBoldJdbcUrl() {
         String url = DatabaseConnection.getJdbcUrl();
         System.out.println("\n" + "=".repeat(80));
-        System.out.println("\u001B[1m\u001B[32m[DATABASE CONSOLE] COPY DÒNG DƯỚI ĐÂY VÀO TRÌNH DUYỆT:\u001B[0m");
+        System.out.println("\u001B[1m\u001B[32m[DATABASE CONSOLE] COPY DONG DUOI DAY VAO TRINH DUYET:\u001B[0m");
         System.out.println("\u001B[1m" + url + "\u001B[0m");
         System.out.println("=".repeat(80) + "\n");
     }
