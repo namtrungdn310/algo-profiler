@@ -66,4 +66,5 @@ Khi chương trình đang chạy, thầy có thể kiểm tra dữ liệu trực
 3. Nhấn **Connect** để xem và truy vấn các bảng: `USERS`, `SUBMISSIONS`, `ANALYSIS`.
 
 ---
-*Bài tập được thực hiện bởi sinh viên: Châu Thanh Nam Trung - MSSV: 102240117 - STT: 26 - Lớp: 24T_DT2.*
+Thành viên nhóm (1 thành viên):
+- Châu Thanh Nam Trung - MSSV: 102240117 - STT: 26 - Lớp: 24T_DT2.
