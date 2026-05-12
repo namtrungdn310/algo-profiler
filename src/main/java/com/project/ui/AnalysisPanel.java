@@ -51,7 +51,7 @@ public class AnalysisPanel extends JPanel {
         this.onDataChanged = onDataChanged;
         this.userComboBox = new JComboBox<>();
         this.tableModel = new DefaultTableModel(
-                new Object[]{"Submission ID", "Contest ID", "Bài", "Trạng thái", "AI %", "Thuật toán"}, 0) {
+                new Object[]{"STT", "Submission ID", "Bài", "Trạng thái", "AI %", "CTDL", "Thuật toán"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -63,8 +63,24 @@ public class AnalysisPanel extends JPanel {
         this.analyzeButton = new JButton("Phân tích code đã chọn");
         this.progressBar = new JProgressBar(0, 100);
         this.statusLabel = new JLabel("Sẵn sàng.");
+        
+        // Cấu hình độ rộng cột
+        analysisTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         initializeLayout();
+        configureTableColumns();
         refreshUsers();
+    }
+
+    private void configureTableColumns() {
+        if (analysisTable.getColumnCount() >= 7) {
+            analysisTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // STT
+            analysisTable.getColumnModel().getColumn(1).setPreferredWidth(90);  // Submission ID
+            analysisTable.getColumnModel().getColumn(2).setPreferredWidth(160); // Bài
+            analysisTable.getColumnModel().getColumn(3).setPreferredWidth(90);  // Trạng thái
+            analysisTable.getColumnModel().getColumn(4).setPreferredWidth(50);  // AI %
+            analysisTable.getColumnModel().getColumn(5).setPreferredWidth(200); // CTDL
+            analysisTable.getColumnModel().getColumn(6).setPreferredWidth(250); // Thuật toán
+        }
     }
 
     private void initializeLayout() {
@@ -242,14 +258,16 @@ public class AnalysisPanel extends JPanel {
         currentSubmissions.clear();
         currentSubmissions.addAll(submissionDAO.findByUserId(userId));
         tableModel.setRowCount(0);
+        int stt = currentSubmissions.size();
         for (Submission submission : currentSubmissions) {
             Optional<Analysis> analysis = analysisDAO.findBySubmissionId(submission.getId());
             tableModel.addRow(new Object[]{
+                    stt--,
                     submission.getSubmissionId(),
-                    submission.getContestId(),
                     submission.getProblemIndex() + " - " + submission.getProblemName(),
                     analysis.isPresent() ? "Đã phân tích" : "Chưa phân tích",
                     analysis.map(value -> String.format("%.1f", value.getAiUsageScore())).orElse("-"),
+                    analysis.map(Analysis::getDataStructures).orElse("-"),
                     analysis.map(Analysis::getAlgorithms).orElse("-")
             });
         }

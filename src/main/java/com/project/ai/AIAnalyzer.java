@@ -115,7 +115,8 @@ public class AIAnalyzer {
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (response.statusCode() >= 400) {
-            throw new IOException("AI API lỗi HTTP " + response.statusCode() + ": " + truncate(response.body(), 200));
+            String errorMessage = translateHttpStatusCode(response.statusCode());
+            throw new IOException("AI API lỗi " + response.statusCode() + ": " + errorMessage + "\nChi tiết: " + truncate(response.body(), 200));
         }
     }
 
@@ -131,14 +132,26 @@ public class AIAnalyzer {
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (response.statusCode() == 429) {
-            throw new IOException("Hết quota hoặc bị rate limit từ AI API (HTTP 429).");
-        }
         if (response.statusCode() >= 400) {
-            throw new IOException("AI API lỗi HTTP " + response.statusCode() + ": " + truncate(response.body(), 300));
+            String errorMessage = translateHttpStatusCode(response.statusCode());
+            throw new IOException("AI API lỗi " + response.statusCode() + ": " + errorMessage + "\nChi tiết: " + truncate(response.body(), 300));
         }
 
         return parseAnalysisResult(response.body());
+    }
+
+    private String translateHttpStatusCode(int statusCode) {
+        return switch (statusCode) {
+            case 400 -> "Yêu cầu không hợp lệ (Dữ liệu gửi đi sai định dạng).";
+            case 401 -> "API Key không hợp lệ hoặc đã hết hạn. Hãy kiểm tra lại key.";
+            case 403 -> "Truy cập bị từ chối (Có thể do khu vực địa lý không được hỗ trợ hoặc bị chặn IP).";
+            case 404 -> "Không tìm thấy Model (Tên model hoặc URL sai).";
+            case 429 -> "Hết hạn mức sử dụng (Quota) hoặc bị giới hạn tốc độ. Vui lòng đợi 1-2 phút.";
+            case 500 -> "Lỗi hệ thống máy chủ nội bộ phía Google.";
+            case 503 -> "Máy chủ Google đang quá tải (High Demand). Vui lòng thử lại sau vài giây.";
+            case 504 -> "Hết thời gian chờ phản hồi từ máy chủ (Gateway Timeout).";
+            default -> "Lỗi kết nối không xác định.";
+        };
     }
 
     private void ensureApiKeyConfigured() {

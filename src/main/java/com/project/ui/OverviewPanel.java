@@ -37,7 +37,7 @@ public class OverviewPanel extends JPanel {
         add(createMetricPanel("Tổng số handle", totalHandlesValue));
         add(createMetricPanel("Handle crawl định kỳ", activeHandlesValue));
         add(createMetricPanel("Tổng source code", totalSourcesValue));
-        add(createMetricPanel("Token AI còn lại", tokenStatusValue));
+        add(createMetricPanel("Hạn mức AI (Gemini)", tokenStatusValue));
     }
 
     public void refreshData() {
@@ -69,8 +69,20 @@ public class OverviewPanel extends JPanel {
 
     private String resolveTokenStatus() {
         if (AppConfig.getAiApiKey().isBlank()) {
-            return "Chưa nhập API key";
+            return "Chưa cấu hình API Key";
         }
-        return "API hiện tại không cung cấp quota tự động";
+        
+        String model = AppConfig.getAiModel().toLowerCase();
+        
+        // Logic hiển thị hạn mức động dựa trên Model
+        if (model.contains("2.5") || model.contains("flash")) {
+            // Gemini 2.5/2.0/1.5 Flash (Free Tier)
+            return "Free: 15 RPM | 1500 RPD";
+        } else if (model.contains("pro")) {
+            // Gemini 1.5 Pro (Free Tier - Thường hạn chế hơn)
+            return "Free: 2 RPM | 50 RPD";
+        }
+        
+        return "Gói Miễn phí (Tiêu chuẩn)";
     }
 }
