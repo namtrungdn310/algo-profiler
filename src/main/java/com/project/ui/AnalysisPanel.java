@@ -64,7 +64,6 @@ public class AnalysisPanel extends JPanel {
         this.progressBar = new JProgressBar(0, 100);
         this.statusLabel = new JLabel("Sẵn sàng.");
         
-        // Cấu hình độ rộng cột
         analysisTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         initializeLayout();
         configureTableColumns();
@@ -73,13 +72,13 @@ public class AnalysisPanel extends JPanel {
 
     private void configureTableColumns() {
         if (analysisTable.getColumnCount() >= 7) {
-            analysisTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // STT
-            analysisTable.getColumnModel().getColumn(1).setPreferredWidth(90);  // Submission ID
-            analysisTable.getColumnModel().getColumn(2).setPreferredWidth(160); // Bài
-            analysisTable.getColumnModel().getColumn(3).setPreferredWidth(90);  // Trạng thái
-            analysisTable.getColumnModel().getColumn(4).setPreferredWidth(50);  // AI %
-            analysisTable.getColumnModel().getColumn(5).setPreferredWidth(200); // CTDL
-            analysisTable.getColumnModel().getColumn(6).setPreferredWidth(250); // Thuật toán
+            analysisTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+            analysisTable.getColumnModel().getColumn(1).setPreferredWidth(90);
+            analysisTable.getColumnModel().getColumn(2).setPreferredWidth(160);
+            analysisTable.getColumnModel().getColumn(3).setPreferredWidth(90);
+            analysisTable.getColumnModel().getColumn(4).setPreferredWidth(50);
+            analysisTable.getColumnModel().getColumn(5).setPreferredWidth(200);
+            analysisTable.getColumnModel().getColumn(6).setPreferredWidth(250);
         }
     }
 
@@ -97,7 +96,7 @@ public class AnalysisPanel extends JPanel {
         filterPanel.add(filterButton);
         filterPanel.add(analyzeButton);
 
-        // Progress panel
+
         progressBar.setStringPainted(true);
         progressBar.setString("");
         progressBar.setVisible(false);
@@ -168,7 +167,7 @@ public class AnalysisPanel extends JPanel {
 
         Submission submission = currentSubmissions.get(row);
 
-        // Kiểm tra nếu đã phân tích rồi
+
         try {
             Optional<Analysis> existing = analysisDAO.findBySubmissionId(submission.getId());
             if (existing.isPresent()) {
@@ -178,13 +177,12 @@ public class AnalysisPanel extends JPanel {
             }
         } catch (SQLException ignored) {}
 
-        // Bắt đầu phân tích - hiển thị tiến trình
+
         setAnalyzing(true, "Đang khởi tạo kết nối tới Gemini AI...");
 
         SwingWorker<Analysis, Integer> worker = new SwingWorker<>() {
             @Override
             protected Analysis doInBackground() throws Exception {
-                // Tạo một thread phụ để chạy phần trăm giả lập trong khi chờ AI phản hồi
                 Thread progressThread = new Thread(() -> {
                     try {
                         int p = 10;
@@ -197,7 +195,7 @@ public class AnalysisPanel extends JPanel {
                 });
                 progressThread.start();
 
-                // Gọi AI thực tế
+
                 Analysis result = aiAnalyzer.analyzeAndStore(submission);
                 
                 progressThread.interrupt();

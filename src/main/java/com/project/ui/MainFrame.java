@@ -203,10 +203,10 @@ public class MainFrame extends JFrame {
 
     private void startDatabaseConsole() {
         try {
-            // Khởi chạy H2 Web Console tại localhost:8082
+
             Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082").start();
         } catch (Exception ignored) {
-            // Nếu port đã bị chiếm thì bỏ qua
+
         }
     }
 

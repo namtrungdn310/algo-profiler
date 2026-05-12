@@ -158,7 +158,6 @@ public class CrawlScheduler {
                     CodeforcesCrawler.CrawlReport report = crawler.crawlDetailed(user, maxNewSubmissionsPerUser, sharedDriver);
                     builder.add(report);
                     logScheduler("Scheduled crawl user finished " + report.toDebugString());
-                    // Small delay between handles
                     Thread.sleep(2000);
                 } catch (Exception exception) {
                     builder.failedUserCount(builder.failedUserCount() + 1);

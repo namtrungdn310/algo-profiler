@@ -74,7 +74,7 @@ public class ConfigPanel extends JPanel {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new javax.swing.BoxLayout(contentPanel, javax.swing.BoxLayout.Y_AXIS));
 
-        // --- NHÓM 1: XÁC MINH (BẮT BUỘC) ---
+
         JPanel verifyPanel = new JPanel(new GridBagLayout());
         verifyPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(java.awt.Color.RED, 2),
@@ -103,7 +103,7 @@ public class ConfigPanel extends JPanel {
         profilePathLabel.setFont(profilePathLabel.getFont().deriveFont(11f));
         verifyPanel.add(profilePathLabel, gbc);
 
-        // --- NHÓM 2: LẬP LỊCH CRAWL ---
+
         JPanel schedulePanel = new JPanel(new GridBagLayout());
         schedulePanel.setBorder(BorderFactory.createTitledBorder(" BƯỚC 2: CÀI ĐẶT LỊCH CRAWL ĐỊNH KỲ "));
         GridBagConstraints gbcS = new GridBagConstraints();
@@ -142,7 +142,7 @@ public class ConfigPanel extends JPanel {
         scheduleButtons.add(runNowButton);
         schedulePanel.add(scheduleButtons, gbcS);
 
-        // --- NHÓM 3: CẤU HÌNH AI ---
+
         JPanel aiPanel = new JPanel(new GridBagLayout());
         aiPanel.setBorder(BorderFactory.createTitledBorder(" BƯỚC 3: CẤU HÌNH AI (GEMINI) "));
         GridBagConstraints gbcA = new GridBagConstraints();
@@ -336,14 +336,12 @@ public class ConfigPanel extends JPanel {
                 return;
             }
 
-            // Lưu cấu hình vào file TRƯỚC khi test để API Key không bị mất
             AppConfig.setAiApiKey(newKey);
             AppConfig.setAiApiUrl(newUrl.isBlank() ? AppConfig.getDefaultAiApiUrl() : newUrl);
             if (onConfigSaved != null) {
                 onConfigSaved.run();
             }
 
-            // Sau đó mới test kết nối
             AIAnalyzer analyzer = new AIAnalyzer();
             analyzer.testConnection();
 
@@ -355,7 +353,6 @@ public class ConfigPanel extends JPanel {
                     exception.getMessage(),
                     "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
         } catch (Exception exception) {
-            // API Key đã được lưu nhưng test thất bại - hiển thị lỗi nhưng giữ key
             JOptionPane.showMessageDialog(this,
                     "API Key đã được lưu nhưng kiểm tra kết nối thất bại:\n" 
                     + exception.getMessage()

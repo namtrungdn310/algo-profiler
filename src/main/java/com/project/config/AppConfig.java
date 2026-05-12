@@ -125,7 +125,6 @@ public final class AppConfig {
                 properties.load(inputStream);
             }
             
-            // Tự động sửa URL cũ (gemini 1.x, gemini-pro, gemini-2.0) sang gemini-2.5-flash
             String currentUrl = properties.getProperty(AI_API_URL, "");
             boolean isOldUrl = !currentUrl.isBlank() && !currentUrl.contains("gemini-2.5") && !currentUrl.contains("gemini-3");
             if (isOldUrl) {

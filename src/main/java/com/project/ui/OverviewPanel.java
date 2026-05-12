@@ -74,12 +74,12 @@ public class OverviewPanel extends JPanel {
         
         String model = AppConfig.getAiModel().toLowerCase();
         
-        // Logic hiển thị hạn mức động dựa trên Model
+
         if (model.contains("2.5") || model.contains("flash")) {
-            // Gemini 2.5/2.0/1.5 Flash (Free Tier)
+
             return "Free: 15 RPM | 1500 RPD";
         } else if (model.contains("pro")) {
-            // Gemini 1.5 Pro (Free Tier - Thường hạn chế hơn)
+
             return "Free: 2 RPM | 50 RPD";
         }
         

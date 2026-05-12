@@ -163,7 +163,6 @@ public final class CodeforcesBrowserSession {
             driver.switchTo().window(state.crawlerWindowHandle());
             driver.close();
         } catch (RuntimeException ignored) {
-            // The manually opened Chrome must stay alive even if tab cleanup fails.
         }
     }
 
