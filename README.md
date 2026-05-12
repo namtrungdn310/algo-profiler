@@ -49,7 +49,12 @@
    - Chọn handle và nhấn **Lọc**. Chương trình sẽ tổng hợp toàn bộ kết quả phân tích AI để:
      - Hiển thị **Biểu đồ tròn** về tỷ lệ các Cấu trúc dữ liệu/Thuật toán handle đó hay dùng.
      - Tính toán **Điểm số AI (AI Usage Score)**: Càng cao nghĩa là code càng có nhiều dấu hiệu của AI sinh ra.
-     - Hiển thị danh sách chi tiết từng bài để thầy có cái nhìn tổng quát về trình độ của người dùng đó.
+
+**Bước 6: Thiết lập Crawl định kỳ (Nếu cần)**
+   - Tại tab **Cài đặt hệ thống**, bạn có thể bật **Lịch crawl định kỳ**.
+   - Thiết lập thời gian (ví dụ: `02:00`) và số lượng bài mỗi handle.
+   - Chương trình sẽ tự động chạy ngầm và thu thập dữ liệu mới hàng ngày cho toàn bộ handle có trong hệ thống mà không cần thao tác thủ công.
+   - Bạn có thể nhấn **Chạy crawl định kỳ ngay** để kiểm tra tính năng này lập tức.
 
 ## IV. Kiểm tra Cơ sở dữ liệu
 Khi chương trình đang chạy, thầy có thể kiểm tra dữ liệu trực tiếp qua trình duyệt:
