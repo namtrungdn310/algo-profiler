@@ -11,6 +11,7 @@ public class User {
     private Integer maxRating;
     private String rankTitle;
     private Double totalScore;
+    private boolean crawlEnabled = true;
     private Timestamp lastCrawledAt;
     private Timestamp createdAt;
 
@@ -18,7 +19,7 @@ public class User {
     }
 
     public User(Long id, String handle, String displayName, Integer rating, Integer maxRating,
-                String rankTitle, Double totalScore, Timestamp lastCrawledAt, Timestamp createdAt) {
+                String rankTitle, Double totalScore, boolean crawlEnabled, Timestamp lastCrawledAt, Timestamp createdAt) {
         this.id = id;
         this.handle = handle;
         this.displayName = displayName;
@@ -26,6 +27,7 @@ public class User {
         this.maxRating = maxRating;
         this.rankTitle = rankTitle;
         this.totalScore = totalScore;
+        this.crawlEnabled = crawlEnabled;
         this.lastCrawledAt = lastCrawledAt;
         this.createdAt = createdAt;
     }
@@ -84,6 +86,14 @@ public class User {
 
     public void setTotalScore(Double totalScore) {
         this.totalScore = totalScore;
+    }
+
+    public boolean isCrawlEnabled() {
+        return crawlEnabled;
+    }
+
+    public void setCrawlEnabled(boolean crawlEnabled) {
+        this.crawlEnabled = crawlEnabled;
     }
 
     public Timestamp getLastCrawledAt() {

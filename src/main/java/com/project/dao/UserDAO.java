@@ -17,8 +17,11 @@ public class UserDAO {
 
     public User insert(User user) throws SQLException {
         String sql = """
-                INSERT INTO CF_USER (HANDLE, DISPLAY_NAME, RATING, MAX_RATING, RANK_TITLE, TOTAL_SCORE, LAST_CRAWLED_AT)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO CF_USER (
+                    HANDLE, DISPLAY_NAME, RATING, MAX_RATING, RANK_TITLE,
+                    TOTAL_SCORE, CRAWL_ENABLED, LAST_CRAWLED_AT
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (Connection connection = DatabaseConnection.getConnection();
@@ -29,7 +32,8 @@ public class UserDAO {
             setNullableInteger(statement, 4, user.getMaxRating());
             statement.setString(5, user.getRankTitle());
             statement.setDouble(6, user.getTotalScore() == null ? 0D : user.getTotalScore());
-            statement.setTimestamp(7, user.getLastCrawledAt());
+            statement.setBoolean(7, user.isCrawlEnabled());
+            statement.setTimestamp(8, user.getLastCrawledAt());
             statement.executeUpdate();
 
             try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
@@ -100,6 +104,28 @@ public class UserDAO {
         return users;
     }
 
+    public List<User> findCrawlEnabledUsers() throws SQLException {
+        String sql = "SELECT * FROM CF_USER WHERE CRAWL_ENABLED = TRUE ORDER BY CREATED_AT DESC";
+        List<User> users = new ArrayList<>();
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                users.add(mapRow(resultSet));
+            }
+        }
+        return users;
+    }
+
+    public int countAll() throws SQLException {
+        return countBySql("SELECT COUNT(*) FROM CF_USER");
+    }
+
+    public int countCrawlEnabled() throws SQLException {
+        return countBySql("SELECT COUNT(*) FROM CF_USER WHERE CRAWL_ENABLED = TRUE");
+    }
+
     public boolean updateLastCrawledAt(Long userId, Timestamp lastCrawledAt) throws SQLException {
         String sql = "UPDATE CF_USER SET LAST_CRAWLED_AT = ? WHERE ID = ?";
 
@@ -114,7 +140,8 @@ public class UserDAO {
     public boolean updateProfile(User user) throws SQLException {
         String sql = """
                 UPDATE CF_USER
-                SET DISPLAY_NAME = ?, RATING = ?, MAX_RATING = ?, RANK_TITLE = ?, TOTAL_SCORE = ?, LAST_CRAWLED_AT = ?
+                SET DISPLAY_NAME = ?, RATING = ?, MAX_RATING = ?, RANK_TITLE = ?,
+                    TOTAL_SCORE = ?, CRAWL_ENABLED = ?, LAST_CRAWLED_AT = ?
                 WHERE ID = ?
                 """;
 
@@ -125,8 +152,9 @@ public class UserDAO {
             setNullableInteger(statement, 3, user.getMaxRating());
             statement.setString(4, user.getRankTitle());
             statement.setDouble(5, user.getTotalScore() == null ? 0D : user.getTotalScore());
-            statement.setTimestamp(6, user.getLastCrawledAt());
-            statement.setLong(7, user.getId());
+            statement.setBoolean(6, user.isCrawlEnabled());
+            statement.setTimestamp(7, user.getLastCrawledAt());
+            statement.setLong(8, user.getId());
             return statement.executeUpdate() > 0;
         }
     }
@@ -142,13 +170,49 @@ public class UserDAO {
         }
     }
 
-    public boolean deleteById(Long id) throws SQLException {
-        String sql = "DELETE FROM CF_USER WHERE ID = ?";
+    public boolean updateCrawlEnabled(Long userId, boolean crawlEnabled) throws SQLException {
+        String sql = "UPDATE CF_USER SET CRAWL_ENABLED = ? WHERE ID = ?";
 
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setLong(1, id);
+            statement.setBoolean(1, crawlEnabled);
+            statement.setLong(2, userId);
             return statement.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteById(Long id) throws SQLException {
+        String deleteAnalysisSql = """
+                DELETE FROM ANALYSIS
+                WHERE SUBMISSION_ID IN (
+                    SELECT ID FROM SUBMISSION WHERE USER_ID = ?
+                )
+                """;
+        String deleteSubmissionsSql = "DELETE FROM SUBMISSION WHERE USER_ID = ?";
+        String deleteUserSql = "DELETE FROM CF_USER WHERE ID = ?";
+
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            boolean originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try (PreparedStatement deleteAnalysis = connection.prepareStatement(deleteAnalysisSql);
+                 PreparedStatement deleteSubmissions = connection.prepareStatement(deleteSubmissionsSql);
+                 PreparedStatement deleteUser = connection.prepareStatement(deleteUserSql)) {
+                deleteAnalysis.setLong(1, id);
+                deleteAnalysis.executeUpdate();
+
+                deleteSubmissions.setLong(1, id);
+                deleteSubmissions.executeUpdate();
+
+                deleteUser.setLong(1, id);
+                boolean deleted = deleteUser.executeUpdate() > 0;
+                connection.commit();
+                return deleted;
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw exception;
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
+            }
         }
     }
 
@@ -161,9 +225,18 @@ public class UserDAO {
                 getNullableInteger(resultSet, "MAX_RATING"),
                 resultSet.getString("RANK_TITLE"),
                 resultSet.getDouble("TOTAL_SCORE"),
+                resultSet.getBoolean("CRAWL_ENABLED"),
                 resultSet.getTimestamp("LAST_CRAWLED_AT"),
                 resultSet.getTimestamp("CREATED_AT")
         );
+    }
+
+    private int countBySql(String sql) throws SQLException {
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            return resultSet.next() ? resultSet.getInt(1) : 0;
+        }
     }
 
     private void setNullableInteger(PreparedStatement statement, int parameterIndex, Integer value) throws SQLException {

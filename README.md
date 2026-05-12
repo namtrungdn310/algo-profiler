@@ -18,7 +18,7 @@ AlgoProfiler là ứng dụng Java Swing dùng để:
 - Cấu hình AI API Key qua giao diện, không cần sửa code.
 - Phân tích source code bằng AI API và lưu kết quả xuống bảng `ANALYSIS`.
 - Tính điểm tổng dựa trên thuật toán/CTDL và cảnh báo nguy cơ lạm dụng AI.
-- Double-click trên dashboard để xem chi tiết từng submission đã bị phân tích.
+- Tách giao diện thành các màn hình: tổng quan, tài khoản, source code, phân tích source và đánh giá.
 
 ## 3. Cấu trúc dự án
 
@@ -41,6 +41,7 @@ AlgoProfiler là ứng dụng Java Swing dùng để:
 - `DISPLAY_NAME`: tên hiển thị.
 - `RATING`, `MAX_RATING`, `RANK_TITLE`: thông tin mở rộng.
 - `TOTAL_SCORE`: điểm tổng sau đánh giá.
+- `CRAWL_ENABLED`: bật/tắt crawl định kỳ cho handle.
 - `LAST_CRAWLED_AT`: thời điểm crawl gần nhất.
 - `CREATED_AT`: thời điểm tạo.
 
@@ -96,7 +97,8 @@ Không cần cài ChromeDriver thủ công vì dự án đã dùng `WebDriverMan
 2. Vào màn hình `Cài đặt hệ thống`.
 3. Nhập `AI API Key`.
 4. Nếu cần, kiểm tra `AI API URL`.
-5. Nhấn `Lưu cấu hình`.
+5. Nếu muốn crawl tự động, bật `Bật crawl tự động hằng ngày`, nhập giờ theo định dạng `HH:mm` và số code tối đa mỗi handle mỗi lần.
+6. Nhấn `Lưu cấu hình`.
 
 Sau bước này, ứng dụng sẽ ghi dữ liệu vào file `config.properties` ở thư mục gốc project. Người dùng không cần sửa mã nguồn.
 
@@ -120,11 +122,13 @@ Sau đó chạy class `com.project.ui.MainFrame`.
 ## 9. Quy trình sử dụng đề xuất
 
 1. Mở ứng dụng.
-2. Vào `Cài đặt hệ thống`, nhập AI API Key và lưu.
-3. Vào `Quản lý Nick`, thêm các handle Codeforces.
-4. Vào `Dashboard Đánh Giá`, nhấn `Bắt đầu Crawl & Phân tích`.
-5. Chờ progress bar chạy xong.
-6. Double-click vào một nick để xem chi tiết submission và nhận xét AI.
+2. Vào `Cài đặt hệ thống`, nhập AI API Key, cấu hình giờ crawl định kỳ nếu cần và lưu.
+3. Vào `Tài khoản`, nhập handle Codeforces rồi nhấn `Kiểm tra & cập nhật`.
+4. Bật hoặc tắt cột `Crawl định kỳ` cho từng handle.
+5. Vào `Source Code`, chọn handle, nhấn `Lọc`; nếu chưa có dữ liệu, nhấn `Crawl 5 code gần nhất`.
+6. Double-click hoặc bấm mũi tên ở từng dòng để xem source code.
+7. Vào `Phân tích Source`, chọn handle, lọc source đã crawl rồi chọn từng submission để phân tích AI.
+8. Vào `Đánh giá`, chọn handle để xem điểm tổng, AI trung bình và chi tiết các bài đã phân tích.
 
 ## 10. Lưu ý khi chấm bài
 
@@ -132,3 +136,4 @@ Sau đó chạy class `com.project.ui.MainFrame`.
 - Dự án đã thêm `WebDriverWait` và delay ngắn để giảm nguy cơ bị block.
 - Nếu AI API key trống hoặc sai, chương trình sẽ báo lỗi rõ ràng thay vì crash toàn bộ ứng dụng.
 - Nếu một bài phân tích AI lỗi, hệ thống sẽ đánh dấu `Lỗi phân tích` cho bài đó và tiếp tục xử lý các bài còn lại.
+- Codeforces chỉ cho crawl source nếu submission đó public hoặc thuộc tài khoản đang đăng nhập trong Chrome xác minh.

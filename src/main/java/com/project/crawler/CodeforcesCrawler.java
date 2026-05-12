@@ -128,24 +128,11 @@ public class CodeforcesCrawler {
         try {
             logDebug("Start crawl handle=%s maxNewSubmissions=%d headless=%s".formatted(
                     user.getHandle(), maxNewSubmissions, runHeadless));
-            driver = createDriver(runHeadless);
-            driver.get(BASE_URL + "/submissions/" + normalizeHandle(user.getHandle()));
-            waitForSubmissionsPage(driver, user.getHandle());
 
-            int visibleSubmissionRowCount = findSubmissionRows(driver).size();
-            List<SubmissionSnapshot> acceptedSubmissions = collectAcceptedSubmissions(driver, user.getHandle(), maxNewSubmissions);
+            List<SubmissionSnapshot> acceptedSubmissions = collectAcceptedSubmissionsFromApi(user.getHandle(), maxNewSubmissions);
             logDebug("Collected accepted submissions handle=%s count=%d".formatted(user.getHandle(), acceptedSubmissions.size()));
             if (acceptedSubmissions.isEmpty()) {
-                logDebug("""
-                        No accepted submissions found handle=%s visibleRows=%d currentUrl=%s title=%s pageSnippet=%s
-                        """.formatted(
-                        user.getHandle(),
-                        visibleSubmissionRowCount,
-                        driver.getCurrentUrl(),
-                        driver.getTitle(),
-                        buildPageSnippet(driver.getPageSource())
-                ).replace('\n', ' ').trim());
-                logSampleRows(driver, user.getHandle());
+                logDebug("No accepted submissions found from Codeforces API handle=%s".formatted(user.getHandle()));
             }
             int insertedCount = 0;
             int existingCount = 0;
@@ -153,6 +140,8 @@ public class CodeforcesCrawler {
             int missingSourceElementCount = 0;
             int blockedCount = 0;
             List<Long> sourceUnavailableSubmissionIds = new ArrayList<>();
+            Optional<String> loggedInHandle = Optional.empty();
+            boolean ownCrawl = false;
 
             for (SubmissionSnapshot snapshot : acceptedSubmissions) {
                 if (submissionDAO.existsBySubmissionId(snapshot.submissionId())) {
@@ -161,32 +150,65 @@ public class CodeforcesCrawler {
                     continue;
                 }
 
-                sleepQuietly(1200L);
-                SourceFetchResult fetchResult = fetchSourceCodeViaAuthenticatedApi(
-                        driver,
-                        user.getHandle(),
-                        snapshot.submissionId(),
-                        maxNewSubmissions
-                );
-                if (fetchResult.sourceCode() == null || fetchResult.sourceCode().isBlank()) {
-                    fetchResult = fetchSourceCodeFromSubmissionPage(driver, snapshot);
-                }
-                if (fetchResult.blockedByCloudflare()) {
-                    blockedCount++;
-                    logDebug("Blocked while fetching submissionId=%d handle=%s".formatted(snapshot.submissionId(), user.getHandle()));
-                    break;
+                if (driver == null) {
+                    driver = createDriver(runHeadless);
+                    ensureCodeforcesContext(driver);
+                    loggedInHandle = resolveLoggedInHandle(driver);
+                    ownCrawl = loggedInHandle.isPresent() && isSameCodeforcesHandle(loggedInHandle.get(), user.getHandle());
+                    logDebug("Chrome logged in handle=%s targetHandle=%s ownCrawl=%s".formatted(
+                            loggedInHandle.orElse("<none>"), user.getHandle(), ownCrawl));
                 }
 
-                if (fetchResult.sourceUnavailable()) {
-                    sourceUnavailableCount++;
-                    sourceUnavailableSubmissionIds.add(snapshot.submissionId());
-                    logDebug("Source unavailable (N/A) submissionId=%d url=%s".formatted(
-                            snapshot.submissionId(), snapshot.submissionUrl()));
-                    continue;
+                sleepQuietly(1200L);
+                SourceFetchResult fetchResult = ownCrawl
+                        ? fetchSourceCodeViaAuthenticatedApi(driver, user.getHandle(), snapshot.submissionId(), maxNewSubmissions)
+                        : new SourceFetchResult(null, -1, "Public source crawl: skip private includeSources API.");
+                if (fetchResult.sourceCode() == null || fetchResult.sourceCode().isBlank()) {
+                    if (fetchResult.blockedByCloudflare()) {
+                        blockedCount++;
+                        logDebug("Blocked while fetching submissionId=%d handle=%s".formatted(
+                                snapshot.submissionId(), user.getHandle()));
+                        break;
+                    }
+                    logDebug("Trying source page fallback submissionId=%d handle=%s reason=%s".formatted(
+                            snapshot.submissionId(), user.getHandle(), fetchResult.shortErrorMessage()));
+                    fetchResult = fetchSourceCodeFromSubmissionPage(driver, snapshot);
+                }
+
+                if (fetchResult.blockedByCloudflare()) {
+                    blockedCount++;
+                    logDebug("Blocked while fetching submissionId=%d handle=%s".formatted(
+                            snapshot.submissionId(), user.getHandle()));
+                    break;
                 }
 
                 String sourceCode = normalizeSourceCode(fetchResult.sourceCode());
                 if (sourceCode == null || sourceCode.isBlank()) {
+                    if (fetchResult.sourceUnavailable()) {
+                        sourceUnavailableCount++;
+                        sourceUnavailableSubmissionIds.add(snapshot.submissionId());
+                        logDebug("Source unavailable (N/A) submissionId=%d handle=%s reason=%s".formatted(
+                                snapshot.submissionId(), user.getHandle(), fetchResult.shortErrorMessage()));
+                        continue;
+                    }
+                    if (fetchResult.permissionDenied()) {
+                        if (!ownCrawl) {
+                            sourceUnavailableCount++;
+                            sourceUnavailableSubmissionIds.add(snapshot.submissionId());
+                            logDebug("Public source not permitted submissionId=%d handle=%s loginHandle=%s reason=%s".formatted(
+                                    snapshot.submissionId(),
+                                    user.getHandle(),
+                                    loggedInHandle.orElse("<none>"),
+                                    fetchResult.shortErrorMessage()));
+                            continue;
+                        }
+                        throw new IllegalStateException("""
+                                Codeforces không cho lấy source của handle %s.
+                                Chrome crawler phải đăng nhập đúng tài khoản có handle này. Nếu đang đăng nhập tài khoản khác,
+                                hãy Logout trong Chrome xác minh, đăng nhập lại đúng handle rồi crawl lại.
+                                Chi tiết: %s
+                                """.formatted(user.getHandle(), fetchResult.shortErrorMessage()).trim());
+                    }
                     missingSourceElementCount++;
                     logDebug("No readable source text submissionId=%d url=%s details=%s".formatted(
                             snapshot.submissionId(), snapshot.submissionUrl(), fetchResult.shortErrorMessage()));
@@ -715,6 +737,63 @@ public class CodeforcesCrawler {
         return new SourceFetchResult(null, 404, getBodyText(driver));
     }
 
+    private void ensureCodeforcesContext(WebDriver driver) {
+        String currentUrl = safeLower(driver.getCurrentUrl());
+        if (!currentUrl.startsWith(BASE_URL) || currentUrl.contains("/enter")) {
+            driver.get(BASE_URL + "/");
+        }
+
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(15)).until(webDriver -> {
+                String title = safeLower(webDriver.getTitle());
+                return !title.contains("just a moment");
+            });
+        } catch (TimeoutException exception) {
+            throw new IllegalStateException("""
+                    Codeforces đang hiển thị trang Verification/Captcha trong Chrome crawler.
+                    Hãy hoàn tất xác minh thủ công trong phần Cài đặt rồi thử crawl lại.
+                    """.trim(), exception);
+        }
+    }
+
+    private Optional<String> resolveLoggedInHandle(WebDriver driver) {
+        if (isLoginPage(driver) || isVerificationPage(driver) || !(driver instanceof JavascriptExecutor executor)) {
+            return Optional.empty();
+        }
+
+        try {
+            Object result = executor.executeScript("""
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const normalize = (value) => (value || '').trim();
+                    const profileHandle = (link) => {
+                      const href = link.getAttribute('href') || '';
+                      const match = href.match(/\\/profile\\/([^/?#]+)/);
+                      if (match && match[1]) {
+                        return decodeURIComponent(match[1]);
+                      }
+                      return '';
+                    };
+                    const logoutIndex = links.findIndex((link) => normalize(link.textContent).toLowerCase() === 'logout');
+                    if (logoutIndex >= 0) {
+                      for (let i = logoutIndex - 1; i >= 0; i--) {
+                        const handle = profileHandle(links[i]);
+                        if (handle) return handle;
+                      }
+                    }
+                    return '';
+                    """);
+            String handle = sanitizeText(result == null ? "" : result.toString());
+            return handle.isBlank() ? Optional.empty() : Optional.of(handle);
+        } catch (RuntimeException exception) {
+            logDebug("Cannot resolve logged-in Codeforces handle: " + exception.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private boolean isSameCodeforcesHandle(String firstHandle, String secondHandle) {
+        return sanitizeText(firstHandle).equalsIgnoreCase(sanitizeText(secondHandle));
+    }
+
     private SourceFetchResult fetchSourceCodeViaAuthenticatedApi(
             WebDriver driver,
             String handle,
@@ -725,61 +804,69 @@ public class CodeforcesCrawler {
             return new SourceFetchResult(null, -1, "JavascriptExecutor is not available.");
         }
 
-        int apiCount = Math.min(Math.max(maxNewSubmissions * 20, 100), 1000);
-        Object result = executor.executeAsyncScript("""
-                const handle = arguments[0];
-                const submissionId = String(arguments[1]);
-                const count = arguments[2];
-                const callback = arguments[arguments.length - 1];
-                const url = '/api/user.status?handle=' + encodeURIComponent(handle)
-                    + '&from=1&count=' + encodeURIComponent(count)
-                    + '&includeSources=true';
+        try {
+            ensureCodeforcesContext(driver);
 
-                fetch(url, { credentials: 'include' })
-                    .then(async (response) => {
-                        const text = await response.text();
-                        let data;
-                        try {
-                            data = JSON.parse(text);
-                        } catch (error) {
-                            callback({ status: response.status, source: null, error: text.slice(0, 500) });
-                            return;
-                        }
+            int apiCount = Math.min(Math.max(maxNewSubmissions * 20, 100), 1000);
+            Object result = executor.executeAsyncScript("""
+                    const handle = arguments[0];
+                    const submissionId = String(arguments[1]);
+                    const count = arguments[2];
+                    const callback = arguments[arguments.length - 1];
+                    const url = '/api/user.status?handle=' + encodeURIComponent(handle)
+                        + '&from=1&count=' + encodeURIComponent(count)
+                        + '&includeSources=true';
 
-                        if (data.status !== 'OK') {
+                    fetch(url, { credentials: 'include' })
+                        .then(async (response) => {
+                            const text = await response.text();
+                            let data;
+                            try {
+                                data = JSON.parse(text);
+                            } catch (error) {
+                                callback({ status: response.status, source: null, error: text.slice(0, 500) });
+                                return;
+                            }
+
+                            if (data.status !== 'OK') {
+                                callback({
+                                    status: response.status,
+                                    source: null,
+                                    error: data.comment || data.status || text.slice(0, 500)
+                                });
+                                return;
+                            }
+
+                            const found = (data.result || []).find((item) => String(item.id) === submissionId);
                             callback({
                                 status: response.status,
-                                source: null,
-                                error: data.comment || data.status || text.slice(0, 500)
+                                source: found && found.source ? found.source : null,
+                                error: found ? null : 'Submission not found in includeSources API window.'
                             });
-                            return;
-                        }
+                        })
+                        .catch((error) => callback({ status: -1, source: null, error: String(error) }));
+                    """, handle, targetSubmissionId.toString(), apiCount);
 
-                        const found = (data.result || []).find((item) => String(item.id) === submissionId);
-                        callback({
-                            status: response.status,
-                            source: found && found.source ? found.source : null,
-                            error: found ? null : 'Submission not found in includeSources API window.'
-                        });
-                    })
-                    .catch((error) => callback({ status: -1, source: null, error: String(error) }));
-                """, handle, targetSubmissionId.toString(), apiCount);
+            if (!(result instanceof Map<?, ?> resultMap)) {
+                return new SourceFetchResult(null, -1, "Unknown includeSources API response.");
+            }
 
-        if (!(result instanceof Map<?, ?> resultMap)) {
-            return new SourceFetchResult(null, -1, "Unknown includeSources API response.");
+            int statusCode = resultMap.get("status") instanceof Number number ? number.intValue() : -1;
+            String source = resultMap.get("source") == null ? null : resultMap.get("source").toString();
+            String error = resultMap.get("error") == null ? null : resultMap.get("error").toString();
+            if (source != null && !source.isBlank()) {
+                logDebug("Fetched source through authenticated includeSources API submissionId=%s sourceLength=%d"
+                        .formatted(targetSubmissionId, source.length()));
+            } else if (error != null && !error.isBlank()) {
+                logDebug("includeSources API did not return source submissionId=%s message=%s"
+                        .formatted(targetSubmissionId, new SourceFetchResult(null, statusCode, error).shortErrorMessage()));
+            }
+            return new SourceFetchResult(source, statusCode, error);
+        } catch (RuntimeException exception) {
+            logDebug("includeSources API browser error submissionId=%s message=%s".formatted(
+                    targetSubmissionId, exception.getMessage()));
+            return new SourceFetchResult(null, -1, exception.getMessage());
         }
-
-        int statusCode = resultMap.get("status") instanceof Number number ? number.intValue() : -1;
-        String source = resultMap.get("source") == null ? null : resultMap.get("source").toString();
-        String error = resultMap.get("error") == null ? null : resultMap.get("error").toString();
-        if (source != null && !source.isBlank()) {
-            logDebug("Fetched source through authenticated includeSources API submissionId=%s sourceLength=%d"
-                    .formatted(targetSubmissionId, source.length()));
-        } else if (error != null && !error.isBlank()) {
-            logDebug("includeSources API did not return source submissionId=%s message=%s"
-                    .formatted(targetSubmissionId, new SourceFetchResult(null, statusCode, error).shortErrorMessage()));
-        }
-        return new SourceFetchResult(source, statusCode, error);
     }
 
     private void openUrlReliably(WebDriver driver, String url, Long expectedSubmissionId) {
@@ -812,7 +899,13 @@ public class CodeforcesCrawler {
         WebDriverWait wait = new WebDriverWait(driver, DEFAULT_TIMEOUT);
         try {
             wait.until(webDriver -> {
-                if (isVerificationPage(webDriver) || isLoginPage(webDriver)) {
+                if (isTransientBrowserCheck(webDriver)) {
+                    return false;
+                }
+                if (isVerificationPage(webDriver)
+                        || isLoginPage(webDriver)
+                        || isPermissionDeniedPage(webDriver)
+                        || isSourceUnavailablePage(webDriver)) {
                     return true;
                 }
                 for (By locator : SOURCE_CODE_LOCATORS) {
@@ -820,8 +913,7 @@ public class CodeforcesCrawler {
                         return true;
                     }
                 }
-                return webDriver.getCurrentUrl() != null
-                        && safeLower(webDriver.getCurrentUrl()).contains(snapshot.submissionId().toString());
+                return false;
             });
         } catch (TimeoutException exception) {
             throw new IllegalStateException("""
@@ -842,11 +934,23 @@ public class CodeforcesCrawler {
                 || bodyText.contains("verify you are human");
     }
 
+    private boolean isTransientBrowserCheck(WebDriver driver) {
+        String bodyText = safeLower(getBodyText(driver));
+        return bodyText.contains("please wait. your browser is being checked")
+                || bodyText.contains("browser is being checked");
+    }
+
     private boolean isLoginPage(WebDriver driver) {
         String url = safeLower(driver.getCurrentUrl());
         String bodyText = safeLower(getBodyText(driver));
         return url.contains("/enter")
                 || (bodyText.contains("login") && bodyText.contains("password") && bodyText.contains("handle/email"));
+    }
+
+    private boolean isPermissionDeniedPage(WebDriver driver) {
+        String bodyText = safeLower(getBodyText(driver));
+        return bodyText.contains("you are not allowed to view")
+                || bodyText.contains("not allowed to view the requested page");
     }
 
     private boolean isSourceUnavailablePage(WebDriver driver) {
@@ -1149,11 +1253,25 @@ public class CodeforcesCrawler {
         private boolean blockedByCloudflare() {
             return statusCode == 403
                     && errorMessage != null
-                    && errorMessage.toLowerCase(Locale.ROOT).contains("just a moment");
+                    && (errorMessage.toLowerCase(Locale.ROOT).contains("just a moment")
+                    || errorMessage.toLowerCase(Locale.ROOT).contains("captcha")
+                    || errorMessage.toLowerCase(Locale.ROOT).contains("checking your browser")
+                    || errorMessage.toLowerCase(Locale.ROOT).contains("browser is being checked"));
+        }
+
+        private boolean permissionDenied() {
+            String lowerMessage = errorMessage == null ? "" : errorMessage.toLowerCase(Locale.ROOT);
+            return lowerMessage.contains("you can only include sources for your own submissions")
+                    || lowerMessage.contains("not allowed")
+                    || lowerMessage.contains("permission")
+                    || lowerMessage.contains("you are not allowed to view");
         }
 
         private boolean sourceUnavailable() {
-            return statusCode == 204;
+            String lowerMessage = errorMessage == null ? "" : errorMessage.toLowerCase(Locale.ROOT);
+            return statusCode == 204
+                    || lowerMessage.contains("source n/a")
+                    || lowerMessage.matches(".*\\bsource\\s+n/a\\b.*");
         }
 
         private String shortErrorMessage() {

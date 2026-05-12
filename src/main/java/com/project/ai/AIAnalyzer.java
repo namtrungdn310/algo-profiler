@@ -74,6 +74,22 @@ public class AIAnalyzer {
         return processedCount;
     }
 
+    public Analysis analyzeAndStore(Submission submission) throws SQLException {
+        ensureApiKeyConfigured();
+        try {
+            AIAnalysisResult result = analyzeSubmission(submission);
+            Analysis analysis = toAnalysis(submission, result);
+            analysisDAO.insert(analysis);
+            submissionDAO.updateAnalyzedStatus(submission.getId(), true);
+            return analysis;
+        } catch (Exception exception) {
+            Analysis analysis = buildErrorAnalysis(submission, exception);
+            analysisDAO.insert(analysis);
+            submissionDAO.updateAnalyzedStatus(submission.getId(), true);
+            return analysis;
+        }
+    }
+
     public AIAnalysisResult analyzeSubmission(Submission submission) throws IOException, InterruptedException {
         ensureApiKeyConfigured();
 

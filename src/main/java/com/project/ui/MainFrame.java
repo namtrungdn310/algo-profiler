@@ -1,12 +1,15 @@
 package com.project.ui;
 
+import com.project.config.AppConfig;
 import com.project.scheduler.CrawlScheduler;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -17,13 +20,19 @@ import java.awt.GridLayout;
 public class MainFrame extends JFrame {
 
     private static final String CARD_USER = "user";
-    private static final String CARD_DASHBOARD = "dashboard";
+    private static final String CARD_OVERVIEW = "overview";
+    private static final String CARD_SOURCE = "source";
+    private static final String CARD_ANALYSIS = "analysis";
+    private static final String CARD_EVALUATION = "evaluation";
     private static final String CARD_SETTINGS = "settings";
 
     private final CardLayout cardLayout;
     private final JPanel contentPanel;
-    private final UserPanel userPanel;
-    private final DashboardPanel dashboardPanel;
+    private final OverviewPanel overviewPanel;
+    private final AccountPanel accountPanel;
+    private final SourceCodePanel sourceCodePanel;
+    private final AnalysisPanel analysisPanel;
+    private final EvaluationPanel evaluationPanel;
     private final ConfigPanel configPanel;
     private final CrawlScheduler crawlScheduler;
 
@@ -31,14 +40,19 @@ public class MainFrame extends JFrame {
         super("AlgoProfiler");
         this.cardLayout = new CardLayout();
         this.contentPanel = new JPanel(cardLayout);
-        this.crawlScheduler = new CrawlScheduler(false);
-        this.userPanel = new UserPanel(this::refreshDashboard);
-        this.dashboardPanel = new DashboardPanel(crawlScheduler, this::refreshDashboard);
-        this.configPanel = new ConfigPanel();
+        this.crawlScheduler = new CrawlScheduler(false,
+                report -> SwingUtilities.invokeLater(() -> handleScheduledCrawlFinished(report)));
+        this.overviewPanel = new OverviewPanel();
+        this.accountPanel = new AccountPanel(this::refreshAllData);
+        this.sourceCodePanel = new SourceCodePanel(this::refreshAllData);
+        this.analysisPanel = new AnalysisPanel(this::refreshAllData);
+        this.evaluationPanel = new EvaluationPanel();
+        this.configPanel = new ConfigPanel(this::applySchedulerConfig, this::runScheduledCrawlNow);
 
         initializeFrame();
         initializeLayout();
-        refreshDashboard();
+        refreshAllData();
+        applySchedulerConfig();
     }
 
     private void initializeFrame() {
@@ -52,8 +66,11 @@ public class MainFrame extends JFrame {
         setLayout(new BorderLayout());
         add(createMenuPanel(), BorderLayout.WEST);
 
-        contentPanel.add(userPanel, CARD_USER);
-        contentPanel.add(dashboardPanel, CARD_DASHBOARD);
+        contentPanel.add(overviewPanel, CARD_OVERVIEW);
+        contentPanel.add(accountPanel, CARD_USER);
+        contentPanel.add(sourceCodePanel, CARD_SOURCE);
+        contentPanel.add(analysisPanel, CARD_ANALYSIS);
+        contentPanel.add(evaluationPanel, CARD_EVALUATION);
         contentPanel.add(configPanel, CARD_SETTINGS);
         add(contentPanel, BorderLayout.CENTER);
     }
@@ -64,12 +81,18 @@ public class MainFrame extends JFrame {
         menuPanel.setBorder(BorderFactory.createEmptyBorder(24, 16, 24, 16));
         menuPanel.setBackground(new Color(245, 247, 250));
 
-        JButton userButton = createMenuButton("Quản lý Nick", CARD_USER);
-        JButton dashboardButton = createMenuButton("Dashboard Đánh Giá", CARD_DASHBOARD);
+        JButton overviewButton = createMenuButton("Tổng quan", CARD_OVERVIEW);
+        JButton userButton = createMenuButton("Tài khoản", CARD_USER);
+        JButton sourceButton = createMenuButton("Source Code", CARD_SOURCE);
+        JButton analysisButton = createMenuButton("Phân tích Source", CARD_ANALYSIS);
+        JButton evaluationButton = createMenuButton("Đánh giá", CARD_EVALUATION);
         JButton settingsButton = createMenuButton("Cài đặt hệ thống", CARD_SETTINGS);
 
+        menuPanel.add(overviewButton);
         menuPanel.add(userButton);
-        menuPanel.add(dashboardButton);
+        menuPanel.add(sourceButton);
+        menuPanel.add(analysisButton);
+        menuPanel.add(evaluationButton);
         menuPanel.add(settingsButton);
         return menuPanel;
     }
@@ -78,16 +101,59 @@ public class MainFrame extends JFrame {
         JButton button = new JButton(text);
         button.setFocusPainted(false);
         button.addActionListener(event -> {
-            if (CARD_DASHBOARD.equals(cardName)) {
-                refreshDashboard();
-            }
+            refreshAllData();
             cardLayout.show(contentPanel, cardName);
         });
         return button;
     }
 
-    private void refreshDashboard() {
-        dashboardPanel.refreshData();
+    private void refreshAllData() {
+        overviewPanel.refreshData();
+        accountPanel.refreshData();
+        sourceCodePanel.refreshData();
+        analysisPanel.refreshUsers();
+        evaluationPanel.refreshUsers();
+    }
+
+    private void applySchedulerConfig() {
+        crawlScheduler.stop();
+        if (!AppConfig.isCrawlScheduleEnabled()) {
+            return;
+        }
+        crawlScheduler.startDaily(AppConfig.getCrawlDailyTime(), AppConfig.getCrawlMaxNewPerUser());
+    }
+
+    private void handleScheduledCrawlFinished(CrawlScheduler.ScheduledCrawlReport report) {
+        refreshAllData();
+        configPanel.updateLastScheduledRun(report);
+    }
+
+    private void runScheduledCrawlNow() {
+        SwingWorker<CrawlScheduler.ScheduledCrawlReport, Void> worker = new SwingWorker<>() {
+            @Override
+            protected CrawlScheduler.ScheduledCrawlReport doInBackground() {
+                return crawlScheduler.crawlAllUsersNow(AppConfig.getCrawlMaxNewPerUser());
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    CrawlScheduler.ScheduledCrawlReport report = get();
+                    refreshAllData();
+                    configPanel.updateLastScheduledRun(report);
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            report.toDisplayText(),
+                            "Crawl định kỳ",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception exception) {
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            "Chạy crawl định kỳ thất bại:\n" + exception.getMessage(),
+                            "Lỗi crawler",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        worker.execute();
     }
 
     public static void main(String[] args) {

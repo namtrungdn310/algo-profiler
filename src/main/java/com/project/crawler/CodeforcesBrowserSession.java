@@ -12,7 +12,10 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class CodeforcesBrowserSession {
@@ -22,6 +25,7 @@ public final class CodeforcesBrowserSession {
             .normalize();
     private static final int DEBUG_PORT = 9222;
     private static final AtomicBoolean DRIVER_IN_USE = new AtomicBoolean(false);
+    private static final Map<WebDriver, DriverState> DRIVER_STATES = Collections.synchronizedMap(new IdentityHashMap<>());
 
     private CodeforcesBrowserSession() {
     }
@@ -59,9 +63,12 @@ public final class CodeforcesBrowserSession {
             ChromeDriver driver = new ChromeDriver(options);
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(60));
             driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(60));
+            String crawlerWindowHandle = null;
             if (attachToManualBrowser) {
                 driver.switchTo().newWindow(WindowType.TAB);
+                crawlerWindowHandle = driver.getWindowHandle();
             }
+            DRIVER_STATES.put(driver, new DriverState(attachToManualBrowser, crawlerWindowHandle));
             return driver;
         } catch (RuntimeException exception) {
             DRIVER_IN_USE.set(false);
@@ -72,7 +79,12 @@ public final class CodeforcesBrowserSession {
     public static void releaseDriver(WebDriver driver) {
         try {
             if (driver != null) {
-                driver.quit();
+                DriverState state = DRIVER_STATES.remove(driver);
+                if (state != null && state.attachedToManualBrowser()) {
+                    closeCrawlerTabOnly(driver, state);
+                } else {
+                    driver.quit();
+                }
             }
         } finally {
             DRIVER_IN_USE.set(false);
@@ -143,6 +155,18 @@ public final class CodeforcesBrowserSession {
         }
     }
 
+    private static void closeCrawlerTabOnly(WebDriver driver, DriverState state) {
+        try {
+            if (state.crawlerWindowHandle() == null || driver.getWindowHandles().size() <= 1) {
+                return;
+            }
+            driver.switchTo().window(state.crawlerWindowHandle());
+            driver.close();
+        } catch (RuntimeException ignored) {
+            // The manually opened Chrome must stay alive even if tab cleanup fails.
+        }
+    }
+
     private static Path findChromeExecutable() {
         List<String> roots = List.of(
                 System.getenv("ProgramFiles"),
@@ -164,5 +188,8 @@ public final class CodeforcesBrowserSession {
                 Không tìm thấy chrome.exe trên máy.
                 Hãy cài Google Chrome hoặc chỉnh code để trỏ đúng đường dẫn trình duyệt.
                 """.trim());
+    }
+
+    private record DriverState(boolean attachedToManualBrowser, String crawlerWindowHandle) {
     }
 }

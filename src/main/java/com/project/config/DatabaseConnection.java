@@ -55,6 +55,7 @@ public final class DatabaseConnection {
                         MAX_RATING INT,
                         RANK_TITLE VARCHAR(100),
                         TOTAL_SCORE DOUBLE DEFAULT 0 NOT NULL,
+                        CRAWL_ENABLED BOOLEAN DEFAULT TRUE NOT NULL,
                         LAST_CRAWLED_AT TIMESTAMP,
                         CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
                     )
@@ -104,6 +105,11 @@ public final class DatabaseConnection {
             statement.execute("""
                     ALTER TABLE CF_USER
                     ADD COLUMN IF NOT EXISTS TOTAL_SCORE DOUBLE DEFAULT 0 NOT NULL
+                    """);
+
+            statement.execute("""
+                    ALTER TABLE CF_USER
+                    ADD COLUMN IF NOT EXISTS CRAWL_ENABLED BOOLEAN DEFAULT TRUE NOT NULL
                     """);
         }
     }

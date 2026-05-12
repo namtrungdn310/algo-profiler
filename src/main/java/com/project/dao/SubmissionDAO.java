@@ -80,6 +80,22 @@ public class SubmissionDAO {
         return submissions;
     }
 
+    public Optional<Submission> findById(Long id) throws SQLException {
+        String sql = "SELECT * FROM SUBMISSION WHERE ID = ?";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, id);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return Optional.of(mapRow(resultSet));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     public List<Submission> findAll() throws SQLException {
         String sql = "SELECT * FROM SUBMISSION ORDER BY SUBMITTED_AT DESC, ID DESC";
         List<Submission> submissions = new ArrayList<>();
@@ -121,6 +137,16 @@ public class SubmissionDAO {
             }
         }
         return 0;
+    }
+
+    public int countAll() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM SUBMISSION";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+            return resultSet.next() ? resultSet.getInt(1) : 0;
+        }
     }
 
     public List<Submission> findUnanalyzedSubmissions(int limit) throws SQLException {
