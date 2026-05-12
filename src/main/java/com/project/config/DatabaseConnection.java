@@ -11,7 +11,7 @@ import java.sql.Statement;
 public final class DatabaseConnection {
 
     private static final String DB_DIRECTORY = "database";
-    private static final String JDBC_URL = "jdbc:h2:./database/cf_data;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
+    private static final String JDBC_URL = "jdbc:h2:file:" + Paths.get(DB_DIRECTORY, "algo_profiler").toAbsolutePath().toString().replace("\\", "/") + ";DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
     private static final String JDBC_USER = "sa";
     private static final String JDBC_PASSWORD = "";
 
@@ -24,6 +24,10 @@ public final class DatabaseConnection {
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
+    }
+
+    public static String getJdbcUrl() {
+        return JDBC_URL;
     }
 
     private static void initializeDatabase() {

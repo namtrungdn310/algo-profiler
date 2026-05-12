@@ -1,6 +1,7 @@
 package com.project.ui;
 
 import com.project.config.AppConfig;
+import com.project.config.DatabaseConnection;
 import com.project.scheduler.CrawlScheduler;
 import org.h2.tools.Server;
 
@@ -55,6 +56,15 @@ public class MainFrame extends JFrame {
         initializeLayout();
         refreshAllData();
         applySchedulerConfig();
+        printBoldJdbcUrl();
+    }
+
+    private void printBoldJdbcUrl() {
+        String url = DatabaseConnection.getJdbcUrl();
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("\u001B[1m\u001B[32m[DATABASE CONSOLE] COPY DÒNG DƯỚI ĐÂY VÀO TRÌNH DUYỆT:\u001B[0m");
+        System.out.println("\u001B[1m" + url + "\u001B[0m");
+        System.out.println("=".repeat(80) + "\n");
     }
 
     private void initializeFrame() {

@@ -57,13 +57,22 @@
    - Bạn có thể nhấn **Chạy crawl định kỳ ngay** để kiểm tra tính năng này lập tức.
 
 ## IV. Kiểm tra Cơ sở dữ liệu
-Khi chương trình đang chạy, thầy có thể kiểm tra dữ liệu trực tiếp qua trình duyệt:
+Khi chương trình đang chạy, bạn có thể kiểm tra dữ liệu trực tiếp qua trình duyệt:
 1. Truy cập địa chỉ: **[http://localhost:8082](http://localhost:8082)**
-2. Nhập thông tin kết nối:
-   - **JDBC URL:** `jdbc:h2:./database/algo_profiler`
+2. Nhập thông tin kết nối chính xác như sau:
+   - **JDBC URL:** (Copy dòng `[Database] JDBC URL...` trong cửa sổ Console khi chạy App)
    - **User Name:** `sa`
    - **Password:** (để trống)
-3. Nhấn **Connect** để xem và truy vấn các bảng: `USERS`, `SUBMISSIONS`, `ANALYSIS`.
+3. Nhấn **Connect** để xem và truy vấn các bảng: `CF_USER`, `SUBMISSION`, `ANALYSIS`.
+
+## V. Hệ thống tính điểm tổng quát 
+Hệ thống đánh giá năng lực ứng viên dựa trên hai yếu tố chính:
+1. **Độ rộng kiến thức (Kiến thức thuật toán):**
+   - Mỗi loại **Cấu trúc dữ liệu** hoặc **Thuật toán** duy nhất (không trùng lặp) được AI phát hiện trong các bài nộp sẽ được cộng **10 điểm**.
+   - Mục tiêu: Khuyến khích ứng viên giải nhiều dạng bài khác nhau thay vì chỉ làm các bài tương tự.
+2. **Mức độ trung thực (Hình phạt AI):**
+   - Nếu điểm xác suất sử dụng AI trung bình của tất cả các bài vượt quá **70%**, ứng viên sẽ bị **Trừ 20 điểm** vào tổng kết.
+   - Mục tiêu: Răn đe việc lạm dụng AI để giải bài mà không có sự sáng tạo cá nhân.
 
 ---
 Thành viên nhóm (1 thành viên):

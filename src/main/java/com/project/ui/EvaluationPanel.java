@@ -59,8 +59,31 @@ public class EvaluationPanel extends JPanel {
         detailTable.setRowHeight(24);
 
         add(filterPanel, BorderLayout.NORTH);
-        add(new JScrollPane(detailTable), BorderLayout.CENTER);
-        add(new JScrollPane(summaryArea), BorderLayout.SOUTH);
+        
+        JPanel centerPanel = new JPanel(new BorderLayout(0, 10));
+        centerPanel.add(new JScrollPane(detailTable), BorderLayout.CENTER);
+        
+        summaryArea.setFont(summaryArea.getFont().deriveFont(java.awt.Font.BOLD, 14f));
+        summaryArea.setBorder(BorderFactory.createTitledBorder(" KẾT QUẢ ĐÁNH GIÁ TỔNG QUAN "));
+        centerPanel.add(new JScrollPane(summaryArea), BorderLayout.SOUTH);
+        
+        add(centerPanel, BorderLayout.CENTER);
+        add(createScoringRulesPanel(), BorderLayout.SOUTH);
+    }
+
+    private JPanel createScoringRulesPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.setBorder(BorderFactory.createTitledBorder(" Quy tắc tính điểm tổng "));
+        JLabel label = new JLabel("""
+            <html>
+            <body style='width: 700px; padding: 5px;'>
+            <b>1. Điểm kiến thức:</b> Mỗi loại Cấu trúc dữ liệu hoặc Thuật toán duy nhất phát hiện được = <b>+10 điểm</b>.<br>
+            <b>2. Hình phạt AI:</b> Nếu trung bình cộng AI Usage Score > 70% = <b>Trừ 20 điểm</b> (Nghi ngờ gian lận cao).<br>
+            <i>* Điểm tổng thể hiện sự đa dạng kiến thức và mức độ trung thực của ứng viên.</i>
+            </body></html>
+            """);
+        panel.add(label);
+        return panel;
     }
 
     public void refreshUsers() {
